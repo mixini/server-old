@@ -1,0 +1,3 @@
+[submodule "static/l10n"]
+	path = static/l10n
+	url = https://github.com/mixini/l10n
