@@ -7,13 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-futures = "0.3.4"
+futures = "0.3.5"
 async-std = { version = "1.5.0", features = ["unstable", "attributes"] }
-tide = "0.8.0"
+tide = "0.8.1"
 log = "0.4.8"
 femme = "1.3.0"
 chrono = "0.4.11"
 dotenv = "0.15.0"
-sqlx = { version = "0.3.5", default-features = false, features = ["runtime-tokio", "postgres"] }
+sqlx = { version = "0.3.5", default-features = false, features = ["runtime-async-std", "postgres"] }
 tantivy = "0.12.0"
 argonautica = "0.2.0"
