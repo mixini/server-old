@@ -8,10 +8,8 @@ edition = "2018"
 
 [dependencies]
 futures = "0.3.5"
-async-std = { version = "1.6.1", features = ["unstable", "attributes"] }
+async-std = { version = "1.6.2", features = ["unstable", "attributes"] }
 tide = "0.11.0"
-log = "0.4.8"
-femme = "2.1.0"
 chrono = "0.4.11"
 dotenv = "0.15.0"
 sqlx = { version = "0.3.5", default-features = false, features = ["runtime-async-std", "postgres"] }

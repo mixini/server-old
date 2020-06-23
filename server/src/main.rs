@@ -2,8 +2,6 @@ use tide::log::LogMiddleware;
 
 #[async_std::main]
 async fn main() -> Result<(), std::io::Error> {
-    femme::start(log::Level::Info.to_level_filter()).unwrap();
-
     let mut app = tide::new();
 
     let log_middleware = LogMiddleware::new();
