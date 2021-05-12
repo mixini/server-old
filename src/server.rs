@@ -17,7 +17,8 @@ impl State {
     }
 }
 
-fn try_register_oso() -> Result<Oso, OsoError> {
+/// Attempt to create a new oso instance for managing authorization schemes.
+pub(crate) fn try_register_oso() -> Result<Oso, OsoError> {
     let oso = Oso::new();
 
     // TODO: register polar files
@@ -25,6 +26,7 @@ fn try_register_oso() -> Result<Oso, OsoError> {
     Ok(oso)
 }
 
+/// Run the server.
 pub async fn run() -> Result<(), tide::Error> {
     log::start();
 
