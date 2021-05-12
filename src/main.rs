@@ -4,7 +4,7 @@ mod middleware;
 mod models;
 mod server;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     dotenv::dotenv().ok();
     if let Err(err) = server::run().await {

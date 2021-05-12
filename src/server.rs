@@ -1,6 +1,7 @@
-use async_std::sync::{Arc, Mutex};
 use oso::{Oso, OsoError};
+use std::sync::Arc;
 use tide::log::{self, LogMiddleware};
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct State {
