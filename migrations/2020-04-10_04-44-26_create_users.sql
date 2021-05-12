@@ -10,3 +10,5 @@ CREATE TABLE users (
     UNIQUE (name, email),
     password TEXT NOT NULL
 );
+
+SELECT manage_updated_at('users');
