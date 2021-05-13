@@ -10,15 +10,19 @@ edition = "2018"
 anyhow = "1.0.40"
 chrono = "0.4.19"
 dotenv = "0.15.0"
-lettre = "0.10.0-beta.4"
+lazy_static = "1.4.0"
+lettre = { version = "0.10.0-beta.4", features = ["builder", "tokio1", "smtp-transport", "tokio1-native-tls"] }
 libreauth = "0.14.1"
 oso = "0.12.2"
 oso-derive = "0.12.2"
 redis = { version = "0.20.0", features = ["aio", "tokio-comp", "tokio-native-tls-comp"], default-features = false }
-serde = { version = "1.0.125", features = ["derive"] }
+regex = "1.5.4"
+serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
 sqlx = { version = "0.5.2", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "json"] }
 surf = "2.2.0"
 tantivy = "0.14.0"
 tide = "0.16.0"
 tokio = { version = "1.5.0", features = ["rt-multi-thread", "macros", "sync"] }
+uuid = { version = "0.8.2", features = ["serde", "v4"] }
+validator = { version = "0.13.0", features = ["derive"] }
