@@ -6,16 +6,18 @@ use tokio::sync::Mutex;
 
 use sqlx::PgPool;
 
+use crate::endpoints;
+
 #[derive(Clone)]
-pub struct State {
-    pub oso: Arc<Mutex<Oso>>,
-    pub db_pool: PgPool,
-    pub redis_client: redis::Client,
+pub(crate) struct State {
+    pub(crate) oso: Arc<Mutex<Oso>>,
+    pub(crate) db_pool: PgPool,
+    pub(crate) redis_client: redis::Client,
 }
 
 impl State {
     /// Attempt to create a new State instance
-    pub async fn try_new() -> Result<State> {
+    pub(crate) async fn try_new() -> Result<State> {
         let oso = Arc::new(Mutex::new(try_register_oso()?));
         let db_pool = PgPool::connect(&std::env::var("DATABASE_URL")?).await?;
         let redis_client = redis::Client::open(std::env::var("REDIS_URL")?)?;
@@ -32,13 +34,13 @@ impl State {
 pub(crate) fn try_register_oso() -> Result<Oso> {
     let oso = Oso::new();
 
-    // TODO: register polar files
+    oso.load_file("polar/base.polar")?;
 
     Ok(oso)
 }
 
 /// Run the server.
-pub async fn run() -> Result<()> {
+pub(crate) async fn run() -> Result<()> {
     log::start();
 
     let mut app = tide::with_state(State::try_new().await?);
@@ -48,6 +50,7 @@ pub async fn run() -> Result<()> {
 
     // endpoints
     app.at("/").get(|_| async { Ok("Hello, world!") });
+    app.at("/register").post(endpoints::register);
 
     app.listen(std::env::var("ADDR")?).await?;
     Ok(())
