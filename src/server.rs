@@ -1,4 +1,11 @@
 use anyhow::Result;
+use lettre::{
+    transport::smtp::{
+        authentication::{Credentials, Mechanism},
+        PoolConfig,
+    },
+    SmtpTransport,
+};
 use oso::Oso;
 use std::sync::Arc;
 use tide::log::{self, LogMiddleware};
@@ -13,6 +20,7 @@ pub(crate) struct State {
     pub(crate) oso: Arc<Mutex<Oso>>,
     pub(crate) db_pool: PgPool,
     pub(crate) redis_client: redis::Client,
+    pub(crate) mailer: SmtpTransport,
 }
 
 impl State {
@@ -21,11 +29,23 @@ impl State {
         let oso = Arc::new(Mutex::new(try_register_oso()?));
         let db_pool = PgPool::connect(&std::env::var("DATABASE_URL")?).await?;
         let redis_client = redis::Client::open(std::env::var("REDIS_URL")?)?;
+        let mailer = SmtpTransport::starttls_relay(&std::env::var("SMTP_SERVER")?)?
+            // Add credentials for authentication
+            .credentials(Credentials::new(
+                std::env::var("SMTP_USERNAME")?,
+                std::env::var("SMTP_PASSWORD")?,
+            ))
+            // Configure expected authentication mechanism
+            .authentication(vec![Mechanism::Plain])
+            // Connection pool settings
+            .pool_config(PoolConfig::new())
+            .build();
 
         Ok(State {
             oso,
             db_pool,
             redis_client,
+            mailer,
         })
     }
 }

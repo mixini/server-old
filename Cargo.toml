@@ -11,7 +11,7 @@ anyhow = "1.0.40"
 chrono = "0.4.19"
 dotenv = "0.15.0"
 lazy_static = "1.4.0"
-lettre = { version = "0.10.0-beta.4", features = ["builder", "tokio1", "smtp-transport", "tokio1-native-tls"] }
+lettre = { version = "0.10.0-beta.4", features = ["builder", "tokio1", "smtp-transport", "tokio1-native-tls", "r2d2"] }
 libreauth = "0.14.1"
 oso = "0.12.2"
 oso-derive = "0.12.2"
