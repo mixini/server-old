@@ -82,6 +82,24 @@ pub(crate) async fn register(mut req: Request<State>) -> Result<Response> {
             // acquire state
             let state = req.state();
 
+            // check if either this username or email already exist in our database
+            let mut db_conn = state.db_pool.acquire().await?;
+
+            let conflicts = sqlx::query!(
+                r#"SELECT id FROM users WHERE name = $1 OR email = $2"#,
+                form.name,
+                form.email,
+            )
+            .fetch_all(&mut db_conn)
+            .await?;
+
+            if !conflicts.is_empty() {
+                let res = Response::builder(StatusCode::UnprocessableEntity)
+                    .body(json!({"error": "A user with this name or email already exists."}))
+                    .build();
+                return Ok(res);
+            }
+
             // record this registration in redis
             let reg_key: String = thread_rng()
                 .sample_iter(&Alphanumeric)
