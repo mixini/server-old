@@ -9,6 +9,7 @@ pub(crate) mod endpoints;
 pub(crate) mod middleware;
 pub(crate) mod models;
 pub(crate) mod server;
+pub(crate) mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Result<()>> {

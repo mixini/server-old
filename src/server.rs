@@ -1,9 +1,6 @@
 use anyhow::Result;
 use lettre::{
-    transport::smtp::{
-        authentication::{Credentials, Mechanism},
-        PoolConfig,
-    },
+    transport::smtp::authentication::{Credentials, Mechanism},
     SmtpTransport,
 };
 use oso::Oso;
@@ -19,7 +16,7 @@ use crate::endpoints;
 pub(crate) struct State {
     pub(crate) oso: Arc<Mutex<Oso>>,
     pub(crate) db_pool: PgPool,
-    pub(crate) redis_client: redis::Client,
+    pub(crate) redis_manager: redis::aio::ConnectionManager,
     pub(crate) mailer: SmtpTransport,
 }
 
@@ -28,7 +25,9 @@ impl State {
     pub(crate) async fn try_new() -> Result<State> {
         let oso = Arc::new(Mutex::new(try_register_oso()?));
         let db_pool = PgPool::connect(&std::env::var("DATABASE_URL")?).await?;
-        let redis_client = redis::Client::open(std::env::var("REDIS_URL")?)?;
+        let redis_manager = redis::Client::open(std::env::var("REDIS_URL")?)?
+            .get_tokio_connection_manager()
+            .await?;
         let mailer = SmtpTransport::starttls_relay(&std::env::var("SMTP_SERVER")?)?
             // Add credentials for authentication
             .credentials(Credentials::new(
@@ -37,14 +36,12 @@ impl State {
             ))
             // Configure expected authentication mechanism
             .authentication(vec![Mechanism::Plain])
-            // Connection pool settings
-            .pool_config(PoolConfig::new())
             .build();
 
         Ok(State {
             oso,
             db_pool,
-            redis_client,
+            redis_manager,
             mailer,
         })
     }
@@ -71,6 +68,7 @@ pub(crate) async fn run() -> Result<()> {
     // endpoints
     app.at("/").get(|_| async { Ok("Hello, world!") });
     app.at("/register").post(endpoints::register);
+    app.at("/register/verify").post(endpoints::register_verify);
 
     app.listen(std::env::var("ADDR")?).await?;
     Ok(())

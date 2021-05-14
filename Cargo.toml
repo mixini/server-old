@@ -8,14 +8,16 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.40"
+bincode = "1.3.3"
 chrono = "0.4.19"
 dotenv = "0.15.0"
 lazy_static = "1.4.0"
-lettre = { version = "0.10.0-beta.4", features = ["builder", "tokio1", "smtp-transport", "tokio1-native-tls", "r2d2"] }
+lettre = { version = "0.10.0-beta.4", features = ["builder", "tokio1", "smtp-transport", "tokio1-native-tls"], default-features = false }
 libreauth = "0.14.1"
 oso = "0.12.2"
 oso-derive = "0.12.2"
-redis = { version = "0.20.0", features = ["aio", "tokio-comp", "tokio-native-tls-comp"], default-features = false }
+rand = "0.8.3"
+redis = { version = "0.20.0", features = ["aio", "tokio-comp", "connection-manager"], default-features = false }
 regex = "1.5.4"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
