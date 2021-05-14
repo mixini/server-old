@@ -18,9 +18,10 @@ lazy_static! {
 
 const REGISTER_EXPIRY_SECONDS: usize = 86400;
 
-#[derive(Debug, Validate, Deserialize)]
 /// The form of a `POST /register` request.
+#[derive(Debug, Validate, Deserialize)]
 struct RegisterForm {
+    /// The provided username.
     #[validate(
         length(
             min = 5,
@@ -32,11 +33,11 @@ struct RegisterForm {
             message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
         )
     )]
-    /// The provided username.
-    pub(crate) username: String,
-    #[validate(email(message = "Must be a valid email address."))]
+    pub(crate) name: String,
     /// The provided email.
+    #[validate(email(message = "Must be a valid email address."))]
     pub(crate) email: String,
+    /// The provided password.
     #[validate(
         length(
             min = 8,
@@ -48,7 +49,6 @@ struct RegisterForm {
             message = "Must be alphanumeric and contain at least one number."
         )
     )]
-    /// The provided password.
     pub(crate) password: String,
 }
 
@@ -56,7 +56,7 @@ struct RegisterForm {
 #[derive(Debug, Serialize, Deserialize)]
 struct RegistrationInfo {
     /// The username.
-    username: String,
+    name: String,
     /// The email.
     email: String,
     /// The password in hashed PHC form.
@@ -92,8 +92,8 @@ pub(crate) async fn register(mut req: Request<State>) -> Result<Response> {
             // hash the password
             let hashed_pw = match HASHER.hash(&form.password) {
                 Ok(s) => s,
-                Err(err) => {
-                    tide::log::error!("Error occurred with hasher: {:?}", err);
+                Err(e) => {
+                    tide::log::error!("Error occurred with hasher: {:?}", e);
                     let res = Response::builder(StatusCode::InternalServerError).build();
                     return Ok(res);
                 }
@@ -101,7 +101,7 @@ pub(crate) async fn register(mut req: Request<State>) -> Result<Response> {
 
             // encode this registration info
             let reg_info = RegistrationInfo {
-                username: form.username,
+                name: form.name,
                 email: form.email,
                 password: hashed_pw,
             };
@@ -151,7 +151,7 @@ pub(crate) async fn verify(mut req: Request<State>) -> Result<Response> {
             // acquire state
             let state = req.state();
 
-            let encoded_reg_info: Vec<u8> = state.redis_manager.clone().get(form.reg_key).await?;
+            let encoded_reg_info: Vec<u8> = state.redis_manager.clone().get(&form.reg_key).await?;
 
             // if it's empty, then the registration likely expired
             if encoded_reg_info.is_empty() {
@@ -159,10 +159,26 @@ pub(crate) async fn verify(mut req: Request<State>) -> Result<Response> {
                 return Ok(res);
             }
 
-            // TODO: insert a new user into the database with this info
-            let reg_info = bincode::deserialize(&encoded_reg_info)?;
+            // insert a new user into the database with this info
+            let reg_info: RegistrationInfo = bincode::deserialize(&encoded_reg_info)?;
 
-            unimplemented!()
+            let mut db_conn = state.db_pool.acquire().await?;
+
+            sqlx::query_as!(
+                User,
+                r#"INSERT INTO users (name, email, password) VALUES ($1, $2, $3)"#,
+                reg_info.name,
+                reg_info.email,
+                reg_info.password
+            )
+            .execute(&mut db_conn)
+            .await?;
+
+            // delete value at form.reg_key
+            state.redis_manager.clone().del(&form.reg_key).await?;
+
+            let res = Response::builder(StatusCode::Ok).build();
+            Ok(res)
         }
         Err(form_errors) => {
             let res = Response::builder(StatusCode::BadRequest)
