@@ -16,6 +16,7 @@ lazy_static! {
     static ref RE_PASSWORD: Regex = Regex::new(r"^[a-zA-Z0-9]*[0-9][a-zA-Z0-9]*$").unwrap();
 }
 
+const REGISTER_KEY_PREFIX: &str = "register:";
 const REGISTER_EXPIRY_SECONDS: usize = 86400;
 
 /// The form of a `POST /register` request.
@@ -70,7 +71,7 @@ struct VerifyForm {
         equal = 32,
         message = "Length of this key must be exactly 32 characters."
     ))]
-    reg_key: String,
+    key: String,
 }
 
 /// Endpoint for `POST /register`
@@ -101,11 +102,12 @@ pub(crate) async fn register(mut req: Request<State>) -> Result<Response> {
             }
 
             // record this registration in redis
-            let reg_key: String = thread_rng()
+            let key: String = thread_rng()
                 .sample_iter(&Alphanumeric)
                 .take(32)
                 .map(char::from)
                 .collect();
+            let full_key = format!("{}{}", REGISTER_KEY_PREFIX, &key);
 
             // hash the password
             let hashed_pw = match HASHER.hash(&form.password) {
@@ -128,11 +130,7 @@ pub(crate) async fn register(mut req: Request<State>) -> Result<Response> {
             state
                 .redis_manager
                 .clone()
-                .set_ex(
-                    reg_key.to_owned(),
-                    encoded_reg_info,
-                    REGISTER_EXPIRY_SECONDS,
-                )
+                .set_ex(&full_key, encoded_reg_info, REGISTER_EXPIRY_SECONDS)
                 .await?;
 
             // send an email to the registrant with a code to verify
@@ -142,7 +140,7 @@ pub(crate) async fn register(mut req: Request<State>) -> Result<Response> {
                 .subject("Your Mixini registration verification")
                 .body(format!(
                     "Your Mixini registration key is {}. Note that it will expire in 24 hours.",
-                    reg_key
+                    key
                 ))?;
 
             state.mailer.send(&email)?;
@@ -168,8 +166,10 @@ pub(crate) async fn verify(mut req: Request<State>) -> Result<Response> {
         Ok(()) => {
             // acquire state
             let state = req.state();
+            let key = form.key;
+            let full_key = format!("{}{}", REGISTER_KEY_PREFIX, &key);
 
-            let encoded_reg_info: Vec<u8> = state.redis_manager.clone().get(&form.reg_key).await?;
+            let encoded_reg_info: Vec<u8> = state.redis_manager.clone().get(&full_key).await?;
 
             // if it's empty, then the registration likely expired
             if encoded_reg_info.is_empty() {
@@ -192,8 +192,8 @@ pub(crate) async fn verify(mut req: Request<State>) -> Result<Response> {
             .execute(&mut db_conn)
             .await?;
 
-            // delete value at form.reg_key
-            state.redis_manager.clone().del(&form.reg_key).await?;
+            // delete value at key
+            state.redis_manager.clone().del(&full_key).await?;
 
             let res = Response::builder(StatusCode::Ok).build();
             Ok(res)
