@@ -68,7 +68,7 @@ pub(crate) async fn run() -> Result<()> {
     // endpoints
     app.at("/").get(|_| async { Ok("Hello, world!") });
     app.at("/register").post(endpoints::register);
-    app.at("/register/verify").post(endpoints::register_verify);
+    app.at("/register/verify").put(endpoints::register_verify);
 
     app.listen(std::env::var("ADDR")?).await?;
     Ok(())

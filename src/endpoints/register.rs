@@ -66,7 +66,7 @@ struct RegistrationInfo {
 
 #[derive(Debug, Validate, Deserialize)]
 /// The form of a `POST /verify` request.
-struct VerifyForm {
+struct VerifyQuery {
     #[validate(length(
         equal = 32,
         message = "Length of this key must be exactly 32 characters."
@@ -158,9 +158,9 @@ pub(crate) async fn register(mut req: Request<State>) -> Result<Response> {
     }
 }
 
-/// Endpoint for `POST /register/verify`
-pub(crate) async fn verify(mut req: Request<State>) -> Result<Response> {
-    let form: VerifyForm = req.body_form().await?;
+/// Endpoint for `PUT /register/verify`
+pub(crate) async fn verify(req: Request<State>) -> Result<Response> {
+    let form: VerifyQuery = req.query()?;
 
     match form.validate() {
         Ok(()) => {
