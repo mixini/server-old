@@ -12,20 +12,20 @@ bincode = "1.3.3"
 chrono = "0.4.19"
 dotenv = "0.15.0"
 lazy_static = "1.4.0"
-lettre = { version = "0.10.0-rc.2", features = [
+lettre = { version = "0.10.0-rc.3", features = [
     "builder",
     "tokio1",
     "smtp-transport",
     "tokio1-native-tls",
 ], default-features = false }
 libreauth = "0.14.1"
-oso = { version = "0.12.2", features = ["derive"] }
+oso = { version = "0.12.3", features = ["derive"] }
 rand = "0.8.3"
 redis = { version = "0.20.1", features = ["aio", "tokio-comp", "connection-manager"], default-features = false }
 regex = "1.5.4"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
-sqlx = { version = "0.5.2", features = [
+sqlx = { version = "0.5.5", features = [
     "runtime-tokio-native-tls",
     "postgres",
     "uuid",
@@ -35,6 +35,6 @@ sqlx = { version = "0.5.2", features = [
 surf = "2.2.0"
 tantivy = "0.14.0"
 tide = "0.16.0"
-tokio = { version = "1.6.0", features = ["rt-multi-thread", "macros", "sync"] }
+tokio = { version = "1.6.1", features = ["rt-multi-thread", "macros", "sync"] }
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
 validator = { version = "0.13.0", features = ["derive"] }
