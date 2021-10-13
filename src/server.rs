@@ -49,9 +49,10 @@ impl State {
 
 /// Attempt to create a new oso instance for managing authorization schemes.
 pub(crate) fn try_register_oso() -> Result<Oso> {
-    let oso = Oso::new();
+    let mut oso = Oso::new();
 
-    oso.load_file("polar/base.polar")?;
+    // load oso rule files here
+    oso.load_files(vec!["polar/base.polar"])?;
 
     Ok(oso)
 }
