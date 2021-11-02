@@ -1,8 +1,6 @@
 use anyhow::Result;
 use axum::{
-    extract::Extension,
-    handler::{get, post},
-    routing::BoxRoute,
+    routing::{get, post},
     AddExtensionLayer, Router,
 };
 use lettre::{
@@ -13,6 +11,7 @@ use oso::Oso;
 use sqlx::PgPool;
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
+use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
 use crate::handlers;
@@ -64,11 +63,6 @@ pub(crate) fn try_register_oso() -> Result<Oso> {
 
 /// Run the server.
 pub(crate) async fn run() -> Result<()> {
-    // // endpoints
-    // app.at("/").get(|_| async { Ok("Hello, world!") });
-    // app.at("/register").post(endpoints::register);
-    // app.at("/register/verify").put(endpoints::register_verify);
-
     let addr = std::net::SocketAddr::from_str(&std::env::var("ADDR")?)?;
     tracing::debug!("listening on {}", addr);
 
@@ -78,13 +72,15 @@ pub(crate) async fn run() -> Result<()> {
     Ok(())
 }
 
-async fn try_app() -> Result<Router<BoxRoute>> {
+async fn try_app() -> Result<Router> {
     let state = State::try_new().await?;
+
+    let middleware_stack = ServiceBuilder::new()
+        .layer(TraceLayer::new_for_http())
+        .layer(AddExtensionLayer::new(state));
 
     Ok(Router::new()
         .route("/", get(|| async { "Hello, World!" }))
-        .route("/user", post(handlers::new_user))
-        .layer(TraceLayer::new_for_http())
-        .layer(AddExtensionLayer::new(state))
-        .boxed())
+        .route("/user", post(handlers::create_user))
+        .layer(middleware_stack))
 }

@@ -6,12 +6,12 @@ use axum::{
 use serde::de::DeserializeOwned;
 use validator::Validate;
 
-use crate::error::ServerError;
+use crate::error::MixiniError;
 
 pub(crate) mod auth;
 pub(crate) mod user;
 
-pub(crate) use user::new_user;
+pub(crate) use user::create_user;
 
 /// A validated form with some input.
 #[derive(Debug, Clone, Copy, Default)]
@@ -25,7 +25,7 @@ where
     B::Data: Send,
     B::Error: Into<BoxError>,
 {
-    type Rejection = ServerError;
+    type Rejection = MixiniError;
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
         let Form(value) = Form::<T>::from_request(req).await?;

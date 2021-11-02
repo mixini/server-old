@@ -8,9 +8,10 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ulid::Ulid;
+use uuid::Uuid;
 use validator::Validate;
 
-use crate::error::ServerError;
+use crate::error::MixiniError;
 use crate::handlers::ValidatedForm;
 use crate::server::State;
 use crate::utils::pass::HASHER;
@@ -20,10 +21,10 @@ lazy_static! {
     static ref RE_PASSWORD: Regex = Regex::new(r"^[a-zA-Z0-9]*[0-9][a-zA-Z0-9]*$").unwrap();
 }
 
-const REGISTER_KEY_PREFIX: &str = "register:";
-const REGISTER_EXPIRY_SECONDS: usize = 86400;
+const VERIFY_KEY_PREFIX: &str = "verify:";
+const VERIFY_EXPIRY_SECONDS: usize = 86400;
 
-/// The form of a `POST /user` request.
+/// The form input of a `POST /user` request.
 #[derive(Debug, Validate, Deserialize)]
 pub(crate) struct NewUserInput {
     /// The provided username.
@@ -57,18 +58,22 @@ pub(crate) struct NewUserInput {
     pub(crate) password: String,
 }
 
-/// A local representation of a user.
-#[derive(Debug, Serialize, Deserialize)]
+/// A canonical representation of a user.
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub(crate) struct User {
+    /// The internal user id (actual Ulid)
+    id: Uuid,
     /// The username.
     name: String,
     /// The email.
     email: String,
     /// The password in hashed PHC form, as represented in the database
     password: String,
+    /// If this user is verified
+    verified: bool,
 }
 
-/// The form of a `PUT /user/verify` request.
+/// The form input of a `PUT /user/verify` request.
 #[derive(Debug, Validate, Deserialize)]
 struct VerifyInput {
     #[validate(length(
@@ -79,45 +84,59 @@ struct VerifyInput {
 }
 
 /// Handler for `POST /user`
-pub(crate) async fn new_user(
+pub(crate) async fn create_user(
     ValidatedForm(input): ValidatedForm<NewUserInput>,
     state: Extension<Arc<State>>,
-) -> Result<Response<Body>, ServerError> {
+) -> Result<Response<Body>, MixiniError> {
     // check if either this username or email already exist in our database
     let mut db_conn = state.db_pool.acquire().await?;
 
+    // shadow
+    let (name, email, password) = (input.name, input.email, input.password);
+
     let conflicts = sqlx::query!(
         r#"SELECT id FROM users WHERE name = $1 OR email = $2"#,
-        input.name,
-        input.email,
+        name,
+        email,
     )
     .fetch_optional(&mut db_conn)
     .await?;
 
     if conflicts.is_some() {
         let res = Response::builder()
-            .status(StatusCode::UNPROCESSABLE_ENTITY)
+            .status(StatusCode::CONFLICT)
             .body(Body::from("A user with this name or email already exists."))
-            .expect("should never fail");
+            .unwrap();
         return Ok(res);
     }
 
-    // generate new ulid and hash the password
-    let id = Ulid::new();
-    let hashed_pw = HASHER.hash(&input.password).expect("should never fail");
+    // create new user in db
+    let id = Uuid::from(Ulid::new());
+    let password = HASHER.hash(&password).unwrap();
 
-    //             sqlx::query_as!(
-    //                 User,
-    //                 r#"INSERT INTO users (id, name, email, password) VALUES ($1, $2, $3, $4)"#,
-    //                 reg_info.name,
-    //                 reg_info.email,
-    //                 reg_info.password
-    //             )
-    //             .execute(&mut db_conn)
-    //             .await?;
+    let res = sqlx::query_as!(
+        User,
+        r#"INSERT INTO users (id, name, email, password) VALUES ($1, $2, $3, $4)"#,
+        id,
+        name,
+        email,
+        password,
+    )
+    .execute(&mut db_conn)
+    .await?;
 
-    unimplemented!()
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::empty())
+        .unwrap())
 }
+
+// /// Handler for `POST /user/verify`
+// pub(crate) async fn create_verify_req(
+//     state: Extension<Arc<State>>,
+// ) -> Result<Response<()>, MixiniError> {
+//     unimplemented!()
+// }
 
 // pub(crate) async fn new_user(mut req: Request<State>) -> Result<Response> {
 //     let form: RegisterForm = req.body_form().await?;
