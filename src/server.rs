@@ -1,16 +1,21 @@
 use anyhow::Result;
+use axum::{
+    extract::Extension,
+    handler::{get, post},
+    routing::BoxRoute,
+    AddExtensionLayer, Router,
+};
 use lettre::{
     transport::smtp::authentication::{Credentials, Mechanism},
     SmtpTransport,
 };
 use oso::Oso;
-use std::sync::Arc;
-use tide::log::{self, LogMiddleware};
-use tokio::sync::Mutex;
-
 use sqlx::PgPool;
+use std::{str::FromStr, sync::Arc};
+use tokio::sync::Mutex;
+use tower_http::trace::TraceLayer;
 
-use crate::endpoints;
+use crate::handlers;
 
 #[derive(Clone)]
 pub(crate) struct State {
@@ -51,7 +56,7 @@ impl State {
 pub(crate) fn try_register_oso() -> Result<Oso> {
     let mut oso = Oso::new();
 
-    // load oso rule files here
+    // NOTE: load oso rule files here
     oso.load_files(vec!["polar/base.polar"])?;
 
     Ok(oso)
@@ -59,18 +64,27 @@ pub(crate) fn try_register_oso() -> Result<Oso> {
 
 /// Run the server.
 pub(crate) async fn run() -> Result<()> {
-    log::start();
+    // // endpoints
+    // app.at("/").get(|_| async { Ok("Hello, world!") });
+    // app.at("/register").post(endpoints::register);
+    // app.at("/register/verify").put(endpoints::register_verify);
 
-    let mut app = tide::with_state(State::try_new().await?);
+    let addr = std::net::SocketAddr::from_str(&std::env::var("ADDR")?)?;
+    tracing::debug!("listening on {}", addr);
 
-    // middlewares
-    app.with(LogMiddleware::new());
-
-    // endpoints
-    app.at("/").get(|_| async { Ok("Hello, world!") });
-    app.at("/register").post(endpoints::register);
-    app.at("/register/verify").put(endpoints::register_verify);
-
-    app.listen(std::env::var("ADDR")?).await?;
+    axum::Server::bind(&addr)
+        .serve(try_app().await?.into_make_service())
+        .await?;
     Ok(())
+}
+
+async fn try_app() -> Result<Router<BoxRoute>> {
+    let state = State::try_new().await?;
+
+    Ok(Router::new()
+        .route("/", get(|| async { "Hello, World!" }))
+        .route("/user", post(handlers::new_user))
+        .layer(TraceLayer::new_for_http())
+        .layer(AddExtensionLayer::new(state))
+        .boxed())
 }
