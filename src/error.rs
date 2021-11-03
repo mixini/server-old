@@ -20,6 +20,12 @@ pub(crate) enum MixiniError {
 
     #[error(transparent)]
     SqlxError(#[from] sqlx::Error),
+
+    #[error(transparent)]
+    RedisError(#[from] redis::RedisError),
+
+    #[error(transparent)]
+    OtherError(#[from] anyhow::Error),
 }
 
 impl IntoResponse for MixiniError {
@@ -35,6 +41,20 @@ impl IntoResponse for MixiniError {
             MixiniError::AxumFormRejection(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             MixiniError::SqlxError(e) => {
                 tracing::debug!("Sqlx error occurred: {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    INTERNAL_SERVER_ERROR_MESSAGE.into(),
+                )
+            }
+            MixiniError::RedisError(e) => {
+                tracing::debug!("Redis error occurred: {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    INTERNAL_SERVER_ERROR_MESSAGE.into(),
+                )
+            }
+            MixiniError::OtherError(e) => {
+                tracing::debug!("Other error occurred: {:?}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     INTERNAL_SERVER_ERROR_MESSAGE.into(),

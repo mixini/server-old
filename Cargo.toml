@@ -8,12 +8,13 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.45"
-async-trait = "0.1.51"
 axum = "0.3.0"
+bincode = "1.3.3"
 chrono = "0.4.19"
 dotenv = "0.15.0"
 http = "0.2.5"
 http-body = "0.4.4"
+hyper = { version = "*", features = ["full"] }
 lazy_static = "1.4.0"
 libreauth = "0.14.1"
 oso = { version = "0.22.1", features = ["derive"] }

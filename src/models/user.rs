@@ -1,7 +1,3 @@
-//! Database models
-//!
-//! Note that these may have to be updated by hand.
-
 use sqlx::types::chrono::Utc;
 use uuid::Uuid;
 
@@ -12,6 +8,8 @@ pub(crate) struct User {
     pub(crate) created_at: Utc,
     pub(crate) updated_at: Utc,
     pub(crate) name: String,
+    /// The password in hashed PHC form, as represented in the database
     pub(crate) email: String,
     pub(crate) password: String,
+    pub(crate) verified: bool,
 }

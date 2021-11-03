@@ -1,11 +1,9 @@
 use axum::{body::Body, extract::Extension};
-use http::{Response, StatusCode, Uri};
+use http::{Response, StatusCode};
 use lazy_static::lazy_static;
 use lettre::Message;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use ulid::Ulid;
 use uuid::Uuid;
@@ -56,21 +54,6 @@ pub(crate) struct NewUserInput {
         )
     )]
     pub(crate) password: String,
-}
-
-/// A canonical representation of a user.
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub(crate) struct User {
-    /// The internal user id (actual Ulid)
-    id: Uuid,
-    /// The username.
-    name: String,
-    /// The email.
-    email: String,
-    /// The password in hashed PHC form, as represented in the database
-    password: String,
-    /// If this user is verified
-    verified: bool,
 }
 
 /// The form input of a `PUT /user/verify` request.
@@ -145,14 +128,6 @@ pub(crate) async fn create_user(
 //         Ok(()) => {
 //             // acquire state
 //             let state = req.state();
-
-//             // encode this registration info
-//             let reg_info = RegistrationInfo {
-//                 name: form.name,
-//                 email: form.email,
-//                 password: hashed_pw,
-//             };
-//             let encoded_reg_info: Vec<u8> = bincode::serialize(&reg_info)?;
 
 //             state
 //                 .redis_manager

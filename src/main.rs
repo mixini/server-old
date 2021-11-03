@@ -5,9 +5,9 @@
     rust_2018_idioms
 )]
 
+pub(crate) mod auth;
 pub(crate) mod error;
 pub(crate) mod handlers;
-pub(crate) mod middleware;
 pub(crate) mod models;
 pub(crate) mod server;
 pub(crate) mod utils;
