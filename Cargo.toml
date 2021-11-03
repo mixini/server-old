@@ -35,7 +35,6 @@ sqlx = { version = "0.5.9", features = [
     "json",
     "macros",
 ] }
-surf = "2.3.2"
 tantivy = "0.16.1"
 thiserror = "1.0.30"
 tokio = { version = "1.13.0", features = ["rt-multi-thread", "macros", "sync"] }

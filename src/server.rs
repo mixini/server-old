@@ -82,5 +82,9 @@ async fn try_app() -> Result<Router> {
     Ok(Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/user", post(handlers::create_user))
+        .route(
+            "/user/verify",
+            post(handlers::create_verify_entry).put(handlers::update_verify_user),
+        )
         .layer(middleware_stack))
 }

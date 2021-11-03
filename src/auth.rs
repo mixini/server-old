@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::format_err;
 use axum::{
     async_trait,
     extract::{Extension, FromRequest, RequestParts},
@@ -48,7 +48,7 @@ where
 
                 if let Some(raw_user_info) = value {
                     let user_info: UserInfo =
-                        bincode::deserialize(&raw_user_info).map_err(|e| anyhow!(e))?;
+                        bincode::deserialize(&raw_user_info).map_err(|e| format_err!(e))?;
                     Ok(Auth::KnownUser(user_info))
                 } else {
                     Ok(Auth::UnknownUser)

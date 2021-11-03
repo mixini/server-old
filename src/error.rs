@@ -25,6 +25,12 @@ pub(crate) enum MixiniError {
     RedisError(#[from] redis::RedisError),
 
     #[error(transparent)]
+    LettreError(#[from] lettre::error::Error),
+
+    #[error(transparent)]
+    SmtpError(#[from] lettre::transport::smtp::Error),
+
+    #[error(transparent)]
     OtherError(#[from] anyhow::Error),
 }
 
@@ -48,6 +54,20 @@ impl IntoResponse for MixiniError {
             }
             MixiniError::RedisError(e) => {
                 tracing::debug!("Redis error occurred: {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    INTERNAL_SERVER_ERROR_MESSAGE.into(),
+                )
+            }
+            MixiniError::LettreError(e) => {
+                tracing::debug!("Lettre error occurred: {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    INTERNAL_SERVER_ERROR_MESSAGE.into(),
+                )
+            }
+            MixiniError::SmtpError(e) => {
+                tracing::debug!("Smtp error occurred: {:?}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     INTERNAL_SERVER_ERROR_MESSAGE.into(),

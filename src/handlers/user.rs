@@ -1,7 +1,9 @@
+use anyhow::format_err;
 use axum::{body::Body, extract::Extension};
 use http::{Response, StatusCode};
 use lazy_static::lazy_static;
-use lettre::Message;
+use lettre::{Message, Transport};
+use redis::AsyncCommands;
 use regex::Regex;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -9,9 +11,12 @@ use ulid::Ulid;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::auth::Auth;
 use crate::error::MixiniError;
 use crate::handlers::ValidatedForm;
+use crate::models::User;
 use crate::server::State;
+use crate::utils::generate_redis_key;
 use crate::utils::pass::HASHER;
 
 lazy_static! {
@@ -58,7 +63,7 @@ pub(crate) struct NewUserInput {
 
 /// The form input of a `PUT /user/verify` request.
 #[derive(Debug, Validate, Deserialize)]
-struct VerifyInput {
+pub(crate) struct VerifyInput {
     #[validate(length(
         equal = 32,
         message = "Length of this key must be exactly 32 characters."
@@ -97,7 +102,7 @@ pub(crate) async fn create_user(
     let id = Uuid::from(Ulid::new());
     let password = HASHER.hash(&password).unwrap();
 
-    let res = sqlx::query_as!(
+    sqlx::query_as!(
         User,
         r#"INSERT INTO users (id, name, email, password) VALUES ($1, $2, $3, $4)"#,
         id,
@@ -114,97 +119,87 @@ pub(crate) async fn create_user(
         .unwrap())
 }
 
-// /// Handler for `POST /user/verify`
-// pub(crate) async fn create_verify_req(
-//     state: Extension<Arc<State>>,
-// ) -> Result<Response<()>, MixiniError> {
-//     unimplemented!()
-// }
+/// Handler for `POST /user/verify`
+pub(crate) async fn create_verify_entry(
+    state: Extension<Arc<State>>,
+    auth: Auth,
+) -> Result<Response<Body>, MixiniError> {
+    match auth {
+        Auth::KnownUser(user_info) => {
+            let mut db_conn = state.db_pool.acquire().await?;
 
-// pub(crate) async fn new_user(mut req: Request<State>) -> Result<Response> {
-//     let form: RegisterForm = req.body_form().await?;
+            let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_info.id)
+                .fetch_one(&mut db_conn)
+                .await?;
 
-//     match form.validate() {
-//         Ok(()) => {
-//             // acquire state
-//             let state = req.state();
+            if user.verified {
+                Ok(Response::builder()
+                    .status(StatusCode::CONFLICT)
+                    .body(Body::empty())
+                    .unwrap())
+            } else {
+                let key = generate_redis_key(VERIFY_KEY_PREFIX);
 
-//             state
-//                 .redis_manager
-//                 .clone()
-//                 .set_ex(&full_key, encoded_reg_info, REGISTER_EXPIRY_SECONDS)
-//                 .await?;
+                state
+                    .redis_manager
+                    .clone()
+                    .set_ex(&key, user.id.to_string(), VERIFY_EXPIRY_SECONDS)
+                    .await?;
 
-//             // send an email to the registrant with a code to verify
-//             let email = Message::builder()
-//                 .from(std::env::var("SMTP_EMAIL")?.parse()?)
-//                 .to(reg_info.email.parse()?)
-//                 .subject("Your Mixini registration verification")
-//                 .body(format!(
-//                     "Your Mixini registration key is {}. Note that it will expire in 24 hours.",
-//                     key
-//                 ))?;
+                let mail = Message::builder()
+                    .from(
+                        std::env::var("SMTP_EMAIL")
+                            .unwrap()
+                            .parse()
+                            .expect("SMTP_EMAIL key is invalid"),
+                    )
+                    .to(user.email.parse().unwrap())
+                    .subject("Your Mixini email verification")
+                    .body(format!(
+                        "Your Mixini verification key is {}. Note that it will expire in 24 hours.",
+                        key
+                    ))?;
 
-//             state.mailer.send(&email)?;
+                state.mailer.send(&mail)?;
 
-//             // reply with OK
-//             let res = Response::builder(StatusCode::Ok).build();
-//             Ok(res)
-//         }
-//         Err(form_errors) => {
-//             let res = Response::builder(StatusCode::BadRequest)
-//                 .body(json!(form_errors))
-//                 .build();
-//             Ok(res)
-//         }
-//     }
-// }
+                Ok(Response::builder()
+                    .status(StatusCode::OK)
+                    .body(Body::empty())
+                    .unwrap())
+            }
+        }
+        Auth::UnknownUser => Ok(Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body(Body::empty())
+            .unwrap()),
+    }
+}
 
-// /// Endpoint for `PUT /register/verify`
-// pub(crate) async fn verify(req: Request<State>) -> Result<Response> {
-//     let form: VerifyQuery = req.query()?;
+/// Handler for `PUT /user/verify`
+pub(crate) async fn update_verify_user(
+    ValidatedForm(input): ValidatedForm<VerifyInput>,
+    state: Extension<Arc<State>>,
+) -> Result<Response<Body>, MixiniError> {
+    let maybe_id: Option<String> = state.redis_manager.clone().get(&input.key).await?;
 
-//     match form.validate() {
-//         Ok(()) => {
-//             // acquire state
-//             let state = req.state();
-//             let key = form.key;
-//             let full_key = format!("{}{}", REGISTER_KEY_PREFIX, &key);
+    match maybe_id {
+        Some(id) => {
+            let id: Uuid = Uuid::parse_str(&id).map_err(|e| format_err!(e))?;
 
-//             let encoded_reg_info: Vec<u8> = state.redis_manager.clone().get(&full_key).await?;
+            let mut db_conn = state.db_pool.acquire().await?;
 
-//             // if it's empty, then the registration likely expired
-//             if encoded_reg_info.is_empty() {
-//                 let res = Response::builder(StatusCode::BadRequest).build();
-//                 return Ok(res);
-//             }
+            sqlx::query_as!(User, "UPDATE users SET verified = TRUE WHERE id = $1", id)
+                .execute(&mut db_conn)
+                .await?;
 
-//             // insert a new user into the database with this info
-//             let reg_info: RegistrationInfo = bincode::deserialize(&encoded_reg_info)?;
-
-//             let mut db_conn = state.db_pool.acquire().await?;
-
-//             sqlx::query_as!(
-//                 User,
-//                 r#"INSERT INTO users (name, email, password) VALUES ($1, $2, $3)"#,
-//                 reg_info.name,
-//                 reg_info.email,
-//                 reg_info.password
-//             )
-//             .execute(&mut db_conn)
-//             .await?;
-
-//             // delete value at key
-//             state.redis_manager.clone().del(&full_key).await?;
-
-//             let res = Response::builder(StatusCode::Ok).build();
-//             Ok(res)
-//         }
-//         Err(form_errors) => {
-//             let res = Response::builder(StatusCode::BadRequest)
-//                 .body(json!(form_errors))
-//                 .build();
-//             Ok(res)
-//         }
-//     }
-// }
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())
+                .unwrap())
+        }
+        None => Ok(Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::empty())
+            .unwrap()),
+    }
+}

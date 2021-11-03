@@ -11,7 +11,7 @@ use crate::error::MixiniError;
 pub(crate) mod auth;
 pub(crate) mod user;
 
-pub(crate) use user::create_user;
+pub(crate) use user::*;
 
 /// A validated form with some input.
 #[derive(Debug, Clone, Copy, Default)]
