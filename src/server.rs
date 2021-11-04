@@ -86,5 +86,6 @@ async fn try_app() -> Result<Router> {
             "/user/verify",
             post(handlers::create_verify_entry).put(handlers::update_verify_user),
         )
+        .route("/auth", post(handlers::create_auth))
         .layer(middleware_stack))
 }

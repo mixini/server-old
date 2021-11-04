@@ -31,6 +31,12 @@ pub(crate) enum MixiniError {
     SmtpError(#[from] lettre::transport::smtp::Error),
 
     #[error(transparent)]
+    BincodeError(#[from] bincode::Error),
+
+    #[error(transparent)]
+    JsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
     OtherError(#[from] anyhow::Error),
 }
 
@@ -45,13 +51,16 @@ impl IntoResponse for MixiniError {
                 (StatusCode::BAD_REQUEST, message)
             }
             MixiniError::AxumFormRejection(_) => (StatusCode::BAD_REQUEST, self.to_string()),
-            MixiniError::SqlxError(e) => {
-                tracing::debug!("Sqlx error occurred: {:?}", e);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    INTERNAL_SERVER_ERROR_MESSAGE.into(),
-                )
-            }
+            MixiniError::SqlxError(ref e) => match e {
+                sqlx::Error::RowNotFound => (StatusCode::NOT_FOUND, self.to_string()),
+                _ => {
+                    tracing::debug!("Sqlx error occurred: {:?}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        INTERNAL_SERVER_ERROR_MESSAGE.into(),
+                    )
+                }
+            },
             MixiniError::RedisError(e) => {
                 tracing::debug!("Redis error occurred: {:?}", e);
                 (
@@ -68,6 +77,20 @@ impl IntoResponse for MixiniError {
             }
             MixiniError::SmtpError(e) => {
                 tracing::debug!("Smtp error occurred: {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    INTERNAL_SERVER_ERROR_MESSAGE.into(),
+                )
+            }
+            MixiniError::BincodeError(e) => {
+                tracing::debug!("Bincode error occurred: {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    INTERNAL_SERVER_ERROR_MESSAGE.into(),
+                )
+            }
+            MixiniError::JsonError(e) => {
+                tracing::debug!("Json error occurred: {:?}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     INTERNAL_SERVER_ERROR_MESSAGE.into(),

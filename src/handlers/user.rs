@@ -1,10 +1,8 @@
 use anyhow::format_err;
 use axum::{body::Body, extract::Extension};
 use http::{Response, StatusCode};
-use lazy_static::lazy_static;
 use lettre::{Message, Transport};
 use redis::AsyncCommands;
-use regex::Regex;
 use serde::Deserialize;
 use std::sync::Arc;
 use ulid::Ulid;
@@ -13,16 +11,10 @@ use validator::Validate;
 
 use crate::auth::Auth;
 use crate::error::MixiniError;
-use crate::handlers::ValidatedForm;
+use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
 use crate::server::State;
-use crate::utils::generate_redis_key;
-use crate::utils::pass::HASHER;
-
-lazy_static! {
-    static ref RE_USERNAME: Regex = Regex::new(r"^[a-zA-Z0-9\.\-_]+$").unwrap();
-    static ref RE_PASSWORD: Regex = Regex::new(r"^[a-zA-Z0-9]*[0-9][a-zA-Z0-9]*$").unwrap();
-}
+use crate::utils::{generate_redis_key, pass::HASHER};
 
 const VERIFY_KEY_PREFIX: &str = "verify:";
 const VERIFY_EXPIRY_SECONDS: usize = 86400;
@@ -135,7 +127,7 @@ pub(crate) async fn create_verify_entry(
             if user.verified {
                 Ok(Response::builder()
                     .status(StatusCode::CONFLICT)
-                    .body(Body::empty())
+                    .body(Body::from("User email is already verified"))
                     .unwrap())
             } else {
                 let key = generate_redis_key(VERIFY_KEY_PREFIX);
