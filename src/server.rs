@@ -7,7 +7,7 @@ use lettre::{
     transport::smtp::authentication::{Credentials, Mechanism},
     SmtpTransport,
 };
-use oso::Oso;
+use oso::{Oso, PolarClass};
 use sqlx::PgPool;
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
@@ -53,7 +53,12 @@ impl State {
 
 /// Attempt to create a new oso instance for managing authorization schemes.
 pub(crate) fn try_register_oso() -> Result<Oso> {
+    use crate::models::*;
+
     let mut oso = Oso::new();
+
+    // NOTE: load classes here
+    oso.register_class(User::get_polar_class())?;
 
     // NOTE: load oso rule files here
     oso.load_files(vec!["polar/base.polar"])?;

@@ -1,9 +1,7 @@
 use axum::{
-    body::{Bytes, Full},
-    http::{Response, StatusCode},
-    response::IntoResponse,
+    http::StatusCode,
+    response::{IntoResponse, Response},
 };
-use std::convert::Infallible;
 use thiserror::Error;
 
 // dost thou know of the pepeloni
@@ -41,10 +39,7 @@ pub(crate) enum MixiniError {
 }
 
 impl IntoResponse for MixiniError {
-    type Body = Full<Bytes>;
-    type BodyError = Infallible;
-
-    fn into_response(self) -> Response<Self::Body> {
+    fn into_response(self) -> Response {
         match self {
             MixiniError::ValidationError(_) => {
                 let message = format!("Input validation error: [{}]", self).replace("\n", ", ");
