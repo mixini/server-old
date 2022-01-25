@@ -1,16 +1,20 @@
 use anyhow::Result;
+use axum::{
+    routing::{get, post},
+    AddExtensionLayer, Router,
+};
 use lettre::{
     transport::smtp::authentication::{Credentials, Mechanism},
     SmtpTransport,
 };
-use oso::Oso;
-use std::sync::Arc;
-use tide::log::{self, LogMiddleware};
-use tokio::sync::Mutex;
-
+use oso::{Oso, PolarClass};
 use sqlx::PgPool;
+use std::{str::FromStr, sync::Arc};
+use tokio::sync::Mutex;
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
 
-use crate::endpoints;
+use crate::handlers;
 
 #[derive(Clone)]
 pub(crate) struct State {
@@ -49,9 +53,14 @@ impl State {
 
 /// Attempt to create a new oso instance for managing authorization schemes.
 pub(crate) fn try_register_oso() -> Result<Oso> {
+    use crate::models::*;
+
     let mut oso = Oso::new();
 
-    // load oso rule files here
+    // NOTE: load classes here
+    oso.register_class(User::get_polar_class())?;
+
+    // NOTE: load oso rule files here
     oso.load_files(vec!["polar/base.polar"])?;
 
     Ok(oso)
@@ -59,18 +68,29 @@ pub(crate) fn try_register_oso() -> Result<Oso> {
 
 /// Run the server.
 pub(crate) async fn run() -> Result<()> {
-    log::start();
+    let addr = std::net::SocketAddr::from_str(&std::env::var("ADDR")?)?;
+    tracing::debug!("listening on {}", addr);
 
-    let mut app = tide::with_state(State::try_new().await?);
-
-    // middlewares
-    app.with(LogMiddleware::new());
-
-    // endpoints
-    app.at("/").get(|_| async { Ok("Hello, world!") });
-    app.at("/register").post(endpoints::register);
-    app.at("/register/verify").put(endpoints::register_verify);
-
-    app.listen(std::env::var("ADDR")?).await?;
+    axum::Server::bind(&addr)
+        .serve(try_app().await?.into_make_service())
+        .await?;
     Ok(())
+}
+
+async fn try_app() -> Result<Router> {
+    let state = State::try_new().await?;
+
+    let middleware_stack = ServiceBuilder::new()
+        .layer(TraceLayer::new_for_http())
+        .layer(AddExtensionLayer::new(state));
+
+    Ok(Router::new()
+        .route("/", get(|| async { "Hello, World!" }))
+        .route("/user", post(handlers::create_user))
+        .route(
+            "/user/verify",
+            post(handlers::create_verify_entry).put(handlers::update_verify_user),
+        )
+        .route("/auth", post(handlers::create_auth))
+        .layer(middleware_stack))
 }
