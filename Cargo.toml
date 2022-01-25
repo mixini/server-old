@@ -18,6 +18,8 @@ hyper = { version = "0.14.16", features = ["full"] }
 lazy_static = "1.4.0"
 libreauth = "0.14.1"
 oso = { version = "0.25.1", features = ["derive", "uuid-07"] }
+oxide-auth = "0.5.1"
+oxide-auth-axum = "0.1.0"
 rand = "0.8.4"
 redis = { version = "0.21.5", features = [
     "aio",
