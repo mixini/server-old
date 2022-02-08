@@ -5,7 +5,7 @@ use axum::{
 };
 use lettre::{
     transport::smtp::authentication::{Credentials, Mechanism},
-    SmtpTransport,
+    AsyncSmtpTransport, Tokio1Executor,
 };
 use oso::{Oso, PolarClass};
 use sqlx::PgPool;
@@ -21,7 +21,7 @@ pub(crate) struct State {
     pub(crate) oso: Arc<Mutex<Oso>>,
     pub(crate) db_pool: PgPool,
     pub(crate) redis_manager: redis::aio::ConnectionManager,
-    pub(crate) mailer: SmtpTransport,
+    pub(crate) mailsender: AsyncSmtpTransport<Tokio1Executor>,
 }
 
 impl State {
@@ -32,21 +32,22 @@ impl State {
         let redis_manager = redis::Client::open(std::env::var("REDIS_URL")?)?
             .get_tokio_connection_manager()
             .await?;
-        let mailer = SmtpTransport::starttls_relay(&std::env::var("SMTP_SERVER")?)?
-            // Add credentials for authentication
-            .credentials(Credentials::new(
-                std::env::var("SMTP_USERNAME")?,
-                std::env::var("SMTP_PASSWORD")?,
-            ))
-            // Configure expected authentication mechanism
-            .authentication(vec![Mechanism::Plain])
-            .build();
+        let mailsender =
+            AsyncSmtpTransport::<Tokio1Executor>::relay(&std::env::var("SMTP_SERVER")?)?
+                // Add credentials for authentication
+                .credentials(Credentials::new(
+                    std::env::var("SMTP_USERNAME")?,
+                    std::env::var("SMTP_PASSWORD")?,
+                ))
+                // Configure expected authentication mechanism
+                .authentication(vec![Mechanism::Plain])
+                .build();
 
         Ok(State {
             oso,
             db_pool,
             redis_manager,
-            mailer,
+            mailsender,
         })
     }
 }

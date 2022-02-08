@@ -9,8 +9,8 @@ pub(crate) struct User {
     pub(crate) created_at: DateTime<Utc>,
     pub(crate) updated_at: DateTime<Utc>,
     pub(crate) name: String,
-    /// The password in hashed PHC form, as represented in the database
     pub(crate) email: String,
+    /// The password in hashed PHC form, as represented in the database
     pub(crate) password: String,
     #[polar(attribute)]
     pub(crate) verified: bool,

@@ -5,7 +5,7 @@ use axum::{
 use thiserror::Error;
 
 // dost thou know of the pepeloni
-const INTERNAL_SERVER_ERROR_MESSAGE: &str = "aah the pepeloni";
+const INTERNAL_SERVER_ERROR_MESSAGE: &str = "ahh the pepeloni";
 
 /// Any possible errors
 #[derive(Debug, Error)]

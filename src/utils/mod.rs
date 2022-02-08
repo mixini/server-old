@@ -2,6 +2,7 @@
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
+pub(crate) mod mail;
 pub(crate) mod pass;
 
 /// Generate random key for use in Redis given the prefix

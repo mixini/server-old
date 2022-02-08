@@ -8,7 +8,7 @@ pub(crate) const PWD_SCHEME_VERSION: usize = 1;
 
 // If the Hasher changes, make sure to increment PWD_SCHEME_VERSION
 lazy_static! {
-    pub static ref HASHER: Hasher = {
+    pub(crate) static ref HASHER: Hasher = {
         HashBuilder::new()
             .algorithm(PWD_ALGORITHM)
             .version(PWD_SCHEME_VERSION)

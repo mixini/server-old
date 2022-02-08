@@ -1,7 +1,6 @@
 use anyhow::format_err;
 use axum::{body::Body, extract::Extension};
 use http::{Response, StatusCode};
-use lettre::{Message, Transport};
 use redis::AsyncCommands;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -14,7 +13,7 @@ use crate::error::MixiniError;
 use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
 use crate::server::State;
-use crate::utils::{generate_redis_key, pass::HASHER};
+use crate::utils::{generate_redis_key, mail::send_email_verification_request, pass::HASHER};
 
 const VERIFY_KEY_PREFIX: &str = "verify:";
 const VERIFY_EXPIRY_SECONDS: usize = 86400;
@@ -138,21 +137,7 @@ pub(crate) async fn create_verify_entry(
                     .set_ex(&key, user.id.to_string(), VERIFY_EXPIRY_SECONDS)
                     .await?;
 
-                let mail = Message::builder()
-                    .from(
-                        std::env::var("SMTP_EMAIL")
-                            .unwrap()
-                            .parse()
-                            .expect("SMTP_EMAIL key is invalid"),
-                    )
-                    .to(user.email.parse().unwrap())
-                    .subject("Your Mixini email verification")
-                    .body(format!(
-                        "Your Mixini verification key is {}. Note that it will expire in 24 hours.",
-                        key
-                    ))?;
-
-                state.mailer.send(&mail)?;
+                send_email_verification_request(&state.mailsender, user.email, key).await?;
 
                 Ok(Response::builder()
                     .status(StatusCode::OK)
