@@ -12,7 +12,10 @@ use sqlx::PgPool;
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
 use tower::ServiceBuilder;
-use tower_http::trace::TraceLayer;
+use tower_http::{
+    cors::{CorsLayer, Origin},
+    trace::TraceLayer,
+};
 
 use crate::handlers;
 
@@ -53,7 +56,7 @@ impl State {
 }
 
 /// Attempt to create a new oso instance for managing authorization schemes.
-pub(crate) fn try_register_oso() -> Result<Oso> {
+fn try_register_oso() -> Result<Oso> {
     use crate::models::*;
 
     let mut oso = Oso::new();
@@ -65,6 +68,28 @@ pub(crate) fn try_register_oso() -> Result<Oso> {
     oso.load_files(vec!["polar/base.polar"])?;
 
     Ok(oso)
+}
+
+/// Attempt to setup the CORS layer.
+fn try_cors_layer() -> Result<CorsLayer> {
+    use http::Method;
+
+    if cfg!(debug_assertions) {
+        Ok(CorsLayer::permissive())
+    } else {
+        let origins = std::env::var("ALLOWED_ORIGINS")?
+            .split(',')
+            .map(|s| s.trim().parse())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(CorsLayer::new()
+            // allow `GET`, `POST`, `PUT`, `DELETE`
+            .allow_methods(vec![Method::GET, Method::POST, Method::PUT, Method::DELETE])
+            // allow credentials
+            .allow_credentials(true)
+            // allow requests from specified env origins
+            .allow_origin(Origin::list(origins)))
+    }
 }
 
 /// Run the server.
@@ -83,7 +108,8 @@ async fn try_app() -> Result<Router> {
 
     let middleware_stack = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http())
-        .layer(AddExtensionLayer::new(state));
+        .layer(AddExtensionLayer::new(state))
+        .layer(try_cors_layer()?);
 
     Ok(Router::new()
         .route("/", get(|| async { "Hello, World!" }))

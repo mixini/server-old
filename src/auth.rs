@@ -1,6 +1,6 @@
 use axum::{
     async_trait,
-    extract::{Extension, FromRequest, RequestParts},
+    extract::{Extension, FromRequest, RequestParts, TypedHeader},
 };
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,8 @@ use uuid::Uuid;
 
 use crate::{error::MixiniError, server::State};
 
-pub(crate) const AUTH_KEY_PREFIX: &str = "auth:";
+const MIXINI_SESSION_COOKIE_NAME: &str = "mixsession";
+pub(crate) const SESSION_KEY_PREFIX: &str = "session:";
 
 #[derive(Debug)]
 pub(crate) enum Auth {
@@ -36,14 +37,17 @@ where
 
         let headers = req.headers().expect("another extractor took the headers");
 
+        // TODO: use cookies instead
+
         match headers
             .get(http::header::AUTHORIZATION)
             .and_then(|value| value.to_str().ok())
             .map(|value| value.to_string())
         {
-            Some(auth) => {
-                let key = format!("{}{}", AUTH_KEY_PREFIX, &auth);
-                let maybe_value: Option<Vec<u8>> = state.redis_manager.clone().get(&key).await?;
+            Some(session_key) => {
+                let qualified_key = format!("{}{}", SESSION_KEY_PREFIX, &session_key);
+                let maybe_value: Option<Vec<u8>> =
+                    state.redis_manager.clone().get(&qualified_key).await?;
 
                 if let Some(raw_user_info) = maybe_value {
                     let user_info: UserInfo = bincode::deserialize(&raw_user_info)?;

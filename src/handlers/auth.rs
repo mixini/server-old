@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use validator::Validate;
 
-use crate::auth::{UserInfo, AUTH_KEY_PREFIX};
+use crate::auth::{UserInfo, SESSION_KEY_PREFIX};
 use crate::error::MixiniError;
 use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
@@ -15,6 +15,8 @@ use crate::utils::{
     generate_redis_key,
     pass::{HASHER, PWD_SCHEME_VERSION},
 };
+
+// TODO: possibly rework this as `POST /user/login` and `DELETE /user/logout`, also rename auth to session
 
 /// The form input of a `POST /auth` request.
 #[derive(Debug, Validate, Deserialize)]
@@ -87,7 +89,7 @@ pub(crate) async fn create_auth(
     }
 
     // create auth entry in redis
-    let key = generate_redis_key(AUTH_KEY_PREFIX);
+    let key = generate_redis_key(SESSION_KEY_PREFIX);
     let value: Vec<u8> = bincode::serialize(&UserInfo {
         id: user.id,
         name: user.name,
