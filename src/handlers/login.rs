@@ -3,7 +3,7 @@ use axum::{
     extract::{Extension, TypedHeader},
     headers::Cookie,
 };
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use http::{header, Response, StatusCode};
 use lazy_static::lazy_static;
 use libreauth::pass::HashBuilder;
@@ -24,6 +24,7 @@ use crate::utils::{
 
 lazy_static! {
     static ref DOMAIN: String = std::env::var("DOMAIN").expect("DOMAIN is not set in env");
+    static ref LOGIN_DURATION: Duration = Duration::days(30);
 }
 
 /// The form input of a `POST /user/login` request.
@@ -110,10 +111,11 @@ pub(crate) async fn login(
         .header(
             header::SET_COOKIE,
             format!(
-                "{cname}={cval}; Secure; HttpOnly; Domain={domain}",
+                "{cname}={cval}; Secure; HttpOnly; Domain={domain}; Expires={expiredate}",
                 cname = SESSION_COOKIE_NAME,
                 cval = base_key,
-                domain = *DOMAIN
+                domain = *DOMAIN,
+                expiredate = (Utc::now() + *LOGIN_DURATION).to_rfc2822()
             ),
         )
         .body(Body::empty())
