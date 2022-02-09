@@ -13,7 +13,7 @@ use crate::error::MixiniError;
 use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
 use crate::server::State;
-use crate::utils::{generate_redis_key, mail::send_email_verification_request, pass::HASHER};
+use crate::utils::{mail::send_email_verification_request, pass::HASHER, RKeys};
 
 const VERIFY_KEY_PREFIX: &str = "verify:";
 const VERIFY_EXPIRY_SECONDS: usize = 86400;
@@ -129,15 +129,18 @@ pub(crate) async fn create_verify_entry(
                     .body(Body::from("User email is already verified"))
                     .unwrap())
             } else {
-                let key = generate_redis_key(VERIFY_KEY_PREFIX);
+                let RKeys {
+                    base_key,
+                    prefixed_key,
+                } = RKeys::generate(VERIFY_KEY_PREFIX);
 
                 state
                     .redis_manager
                     .clone()
-                    .set_ex(&key, user.id.to_string(), VERIFY_EXPIRY_SECONDS)
+                    .set_ex(&prefixed_key, user.id.to_string(), VERIFY_EXPIRY_SECONDS)
                     .await?;
 
-                send_email_verification_request(&state.mailsender, user.email, key).await?;
+                send_email_verification_request(&state.mailsender, user.email, base_key).await?;
 
                 Ok(Response::builder()
                     .status(StatusCode::OK)
@@ -157,6 +160,7 @@ pub(crate) async fn update_verify_user(
     ValidatedForm(input): ValidatedForm<VerifyInput>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
+    // value is user id
     let maybe_id: Option<String> = state.redis_manager.clone().get(&input.key).await?;
 
     match maybe_id {

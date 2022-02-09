@@ -9,8 +9,8 @@ use lettre::{
 use crate::error::MixiniError;
 
 lazy_static! {
-    pub(crate) static ref SMTP_EMAIL: Mailbox = std::env::var("SMTP_EMAIL")
-        .unwrap()
+    static ref SMTP_EMAIL: Mailbox = std::env::var("SMTP_EMAIL")
+        .expect("SMTP_EMAIL is not set in env")
         .parse()
         .expect("SMTP_EMAIL key is invalid");
 }

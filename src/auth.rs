@@ -2,13 +2,16 @@ use axum::{
     async_trait,
     extract::{Extension, FromRequest, RequestParts, TypedHeader},
 };
-use redis::AsyncCommands;
+use redis::{
+    AsyncCommands, ErrorKind as RedisErrorKind, FromRedisValue, RedisError, RedisResult,
+    RedisWrite, ToRedisArgs, Value as RedisValue,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{error::MixiniError, server::State};
 
-const MIXINI_SESSION_COOKIE_NAME: &str = "mixsession";
+pub(crate) const SESSION_COOKIE_NAME: &str = "msessid";
 pub(crate) const SESSION_KEY_PREFIX: &str = "session:";
 
 #[derive(Debug)]
@@ -21,6 +24,28 @@ pub(crate) enum Auth {
 pub(crate) struct UserInfo {
     pub(crate) id: Uuid,
     pub(crate) name: String,
+}
+
+impl ToRedisArgs for UserInfo {
+    fn write_redis_args<W>(&self, out: &mut W)
+    where
+        W: ?Sized + RedisWrite,
+    {
+        out.write_arg(&bincode::serialize(self).expect("Failed to bincode-serialize user info"));
+    }
+}
+
+impl FromRedisValue for UserInfo {
+    fn from_redis_value(v: &RedisValue) -> RedisResult<Self> {
+        if let RedisValue::Data(data) = v {
+            Ok(bincode::deserialize(data).expect("Failed to bincode-deserialize user info"))
+        } else {
+            Err(RedisError::from((
+                RedisErrorKind::TypeError,
+                "Response type not convertible",
+            )))
+        }
+    }
 }
 
 #[async_trait]

@@ -10,10 +10,10 @@ use validator::Validate;
 
 use crate::error::MixiniError;
 
-pub(crate) mod auth;
+pub(crate) mod login;
 pub(crate) mod user;
 
-pub(crate) use auth::*;
+pub(crate) use login::*;
 pub(crate) use user::*;
 
 lazy_static! {
