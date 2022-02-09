@@ -1,6 +1,7 @@
 use axum::{
     async_trait,
     extract::{Extension, FromRequest, RequestParts, TypedHeader},
+    headers::Cookie,
 };
 use redis::{
     AsyncCommands, ErrorKind as RedisErrorKind, FromRedisValue, RedisError, RedisResult,
@@ -60,29 +61,22 @@ where
             .await
             .expect("State extension missing");
 
-        let headers = req.headers().expect("another extractor took the headers");
+        let cookie = Option::<TypedHeader<Cookie>>::from_request(req)
+            .await
+            .unwrap();
 
-        // TODO: use cookies instead
-
-        // match headers
-        //     .get(http::header::AUTHORIZATION)
-        //     .and_then(|value| value.to_str().ok())
-        //     .map(|value| value.to_string())
-        // {
-        //     Some(session_key) => {
-        //         let qualified_key = format!("{}{}", SESSION_KEY_PREFIX, &session_key);
-        //         let maybe_value: Option<Vec<u8>> =
-        //             state.redis_manager.clone().get(&qualified_key).await?;
-
-        //         if let Some(raw_user_info) = maybe_value {
-        //             let user_info: UserInfo = bincode::deserialize(&raw_user_info)?;
-        //             Ok(Auth::KnownUser(user_info))
-        //         } else {
-        //             Ok(Auth::UnknownUser)
-        //         }
-        //     }
-        //     None => Ok(Auth::UnknownUser),
-        // }
-        todo!()
+        match cookie
+            .as_ref()
+            .and_then(|cookie| cookie.get(SESSION_COOKIE_NAME))
+        {
+            Some(base_key) => {
+                let prefixed_key = format!("{}{}", SESSION_KEY_PREFIX, &base_key);
+                match state.redis_manager.clone().get(&prefixed_key).await? {
+                    Some(user_info) => Ok(Auth::KnownUser(user_info)),
+                    None => Ok(Auth::UnknownUser),
+                }
+            }
+            None => Ok(Auth::UnknownUser),
+        }
     }
 }
