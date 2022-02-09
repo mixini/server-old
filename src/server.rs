@@ -113,11 +113,11 @@ async fn try_app() -> Result<Router> {
 
     Ok(Router::new()
         .route("/", get(|| async { "Hello, World!" }))
-        .route("/user", post(handlers::create_user))
+        .route("/user", get(handlers::get_user).post(handlers::create_user))
         .route(
             "/user/verify",
             post(handlers::create_verify_entry).put(handlers::update_verify_user),
         )
-        .route("/auth", post(handlers::create_auth))
+        .route("/login", post(handlers::login).delete(handlers::logout))
         .layer(middleware_stack))
 }

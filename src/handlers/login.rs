@@ -1,4 +1,9 @@
-use axum::{body::Body, extract::Extension};
+use axum::{
+    body::Body,
+    extract::{Extension, TypedHeader},
+    headers::Cookie,
+};
+use chrono::Utc;
 use http::{header, Response, StatusCode};
 use lazy_static::lazy_static;
 use libreauth::pass::HashBuilder;
@@ -20,8 +25,6 @@ use crate::utils::{
 lazy_static! {
     static ref DOMAIN: String = std::env::var("DOMAIN").expect("DOMAIN is not set in env");
 }
-
-// TODO: possibly rework this as `POST /user/login` and `DELETE /user/logout`, also rename auth to session
 
 /// The form input of a `POST /user/login` request.
 #[derive(Debug, Validate, Deserialize)]
@@ -52,16 +55,8 @@ pub(crate) struct LoginInput {
     pub(crate) password: String,
 }
 
-// /// The response of a `POST /auth` request.
-// ///
-// /// Returns an "auth_key" meant to be used as an authorization header value in subsequent requests
-// #[derive(Debug, Serialize)]
-// pub(crate) struct LoginResponse {
-//     pub(crate) auth_key: String,
-// }
-
-/// Handler for `POST /auth`
-pub(crate) async fn create_auth(
+/// Handler for `POST /login`
+pub(crate) async fn login(
     ValidatedForm(input): ValidatedForm<LoginInput>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
@@ -115,10 +110,41 @@ pub(crate) async fn create_auth(
         .header(
             header::SET_COOKIE,
             format!(
-                "{0}={1}; Secure; HttpOnly; Domain={2}",
-                SESSION_COOKIE_NAME, base_key, *DOMAIN
+                "{cname}={cval}; Secure; HttpOnly; Domain={domain}",
+                cname = SESSION_COOKIE_NAME,
+                cval = base_key,
+                domain = *DOMAIN
             ),
         )
         .body(Body::empty())
         .unwrap())
+}
+
+/// Handler for `DELETE /login`
+pub(crate) async fn logout(
+    TypedHeader(cookie): TypedHeader<Cookie>,
+    state: Extension<Arc<State>>,
+) -> Result<Response<Body>, MixiniError> {
+    if let Some(sessid) = cookie.get(SESSION_COOKIE_NAME) {
+        let prefixed_key = format!("{}{}", SESSION_KEY_PREFIX, sessid);
+        state.redis_manager.clone().del(&prefixed_key).await?;
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .header(
+                header::SET_COOKIE,
+                format!(
+                    "{cname}=expired; Secure; HttpOnly; Domain={domain}; Expires={expiredate}",
+                    cname = SESSION_COOKIE_NAME,
+                    domain = *DOMAIN,
+                    expiredate = Utc::now().to_rfc2822()
+                ),
+            )
+            .body(Body::empty())
+            .unwrap())
+    } else {
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::empty())
+            .unwrap())
+    }
 }

@@ -1,8 +1,12 @@
 use anyhow::format_err;
-use axum::{body::Body, extract::Extension};
+use axum::{
+    body::Body,
+    extract::{Extension, Path},
+};
+use chrono::{DateTime, Utc};
 use http::{Response, StatusCode};
 use redis::AsyncCommands;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ulid::Ulid;
 use uuid::Uuid;
@@ -18,7 +22,7 @@ use crate::utils::{mail::send_email_verification_request, pass::HASHER, RKeys};
 const VERIFY_KEY_PREFIX: &str = "verify:";
 const VERIFY_EXPIRY_SECONDS: usize = 86400;
 
-/// The form input of a `POST /user` request.
+/// The form input for `POST /user`
 #[derive(Debug, Validate, Deserialize)]
 pub(crate) struct NewUserInput {
     /// The provided username.
@@ -52,7 +56,7 @@ pub(crate) struct NewUserInput {
     pub(crate) password: String,
 }
 
-/// The form input of a `PUT /user/verify` request.
+/// The form input for `PUT /user/verify`
 #[derive(Debug, Validate, Deserialize)]
 pub(crate) struct VerifyInput {
     #[validate(length(
@@ -60,6 +64,16 @@ pub(crate) struct VerifyInput {
         message = "Length of this key must be exactly 32 characters."
     ))]
     key: String,
+}
+
+/// The response output for `GET /user/:name`
+#[derive(Debug, Serialize)]
+pub(crate) struct UserResponse {
+    pub(crate) id: Uuid,
+    pub(crate) created_at: DateTime<Utc>,
+    pub(crate) updated_at: DateTime<Utc>,
+    pub(crate) name: String,
+    pub(crate) email: Option<String>,
 }
 
 /// Handler for `POST /user`
@@ -108,6 +122,57 @@ pub(crate) async fn create_user(
         .status(StatusCode::OK)
         .body(Body::empty())
         .unwrap())
+}
+
+/// Handler for `GET /user/:name`
+pub(crate) async fn get_user(
+    Path(user_id): Path<Uuid>,
+    state: Extension<Arc<State>>,
+    auth: Auth,
+) -> Result<Response<Body>, MixiniError> {
+    let mut db_conn = state.db_pool.acquire().await?;
+
+    match sqlx::query_as!(User, r#"SELECT * FROM users WHERE id = $1"#, user_id)
+        .fetch_optional(&mut db_conn)
+        .await?
+    {
+        Some(user) => {
+            // if user is self, allow email to be seen
+            let email = match auth {
+                Auth::KnownUser(requesting_user_info) => {
+                    if requesting_user_info.id == user.id {
+                        Some(user.email)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            let user_response = UserResponse {
+                id: user.id,
+                created_at: user.created_at,
+                updated_at: user.updated_at,
+                name: user.name,
+                email,
+            };
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::from(serde_json::to_vec(&user_response)?))
+                .unwrap())
+        }
+        None => Ok(Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::empty())
+            .unwrap()),
+    }
+}
+
+/// Handler for `PUT /user/:name`
+pub(crate) async fn update_user(
+    state: Extension<Arc<State>>,
+    auth: Auth,
+) -> Result<Response<Body>, MixiniError> {
+    todo!()
 }
 
 /// Handler for `POST /user/verify`

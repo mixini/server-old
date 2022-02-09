@@ -64,24 +64,25 @@ where
 
         // TODO: use cookies instead
 
-        match headers
-            .get(http::header::AUTHORIZATION)
-            .and_then(|value| value.to_str().ok())
-            .map(|value| value.to_string())
-        {
-            Some(session_key) => {
-                let qualified_key = format!("{}{}", SESSION_KEY_PREFIX, &session_key);
-                let maybe_value: Option<Vec<u8>> =
-                    state.redis_manager.clone().get(&qualified_key).await?;
+        // match headers
+        //     .get(http::header::AUTHORIZATION)
+        //     .and_then(|value| value.to_str().ok())
+        //     .map(|value| value.to_string())
+        // {
+        //     Some(session_key) => {
+        //         let qualified_key = format!("{}{}", SESSION_KEY_PREFIX, &session_key);
+        //         let maybe_value: Option<Vec<u8>> =
+        //             state.redis_manager.clone().get(&qualified_key).await?;
 
-                if let Some(raw_user_info) = maybe_value {
-                    let user_info: UserInfo = bincode::deserialize(&raw_user_info)?;
-                    Ok(Auth::KnownUser(user_info))
-                } else {
-                    Ok(Auth::UnknownUser)
-                }
-            }
-            None => Ok(Auth::UnknownUser),
-        }
+        //         if let Some(raw_user_info) = maybe_value {
+        //             let user_info: UserInfo = bincode::deserialize(&raw_user_info)?;
+        //             Ok(Auth::KnownUser(user_info))
+        //         } else {
+        //             Ok(Auth::UnknownUser)
+        //         }
+        //     }
+        //     None => Ok(Auth::UnknownUser),
+        // }
+        todo!()
     }
 }

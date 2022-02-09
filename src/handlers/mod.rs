@@ -1,5 +1,6 @@
 use axum::{
     async_trait,
+    body::HttpBody,
     extract::{Form, FromRequest, RequestParts},
     BoxError,
 };
@@ -30,7 +31,7 @@ pub(crate) struct ValidatedForm<T>(pub(crate) T);
 impl<T, B> FromRequest<B> for ValidatedForm<T>
 where
     T: DeserializeOwned + Validate,
-    B: http_body::Body + Send,
+    B: HttpBody + Send,
     B::Data: Send,
     B::Error: Into<BoxError>,
 {
