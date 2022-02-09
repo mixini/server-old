@@ -2,9 +2,9 @@ use anyhow::format_err;
 use axum::{
     body::Body,
     extract::{Extension, Path},
+    http::{Response, StatusCode},
 };
 use chrono::{DateTime, Utc};
-use http::{Response, StatusCode};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -124,15 +124,15 @@ pub(crate) async fn create_user(
         .unwrap())
 }
 
-/// Handler for `GET /user/:name`
+/// Handler for `GET /user/:id`
 pub(crate) async fn get_user(
-    Path(user_id): Path<Uuid>,
+    Path(id): Path<Uuid>,
     state: Extension<Arc<State>>,
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
     let mut db_conn = state.db_pool.acquire().await?;
 
-    match sqlx::query_as!(User, r#"SELECT * FROM users WHERE id = $1"#, user_id)
+    match sqlx::query_as!(User, r#"SELECT * FROM users WHERE id = $1"#, id)
         .fetch_optional(&mut db_conn)
         .await?
     {
@@ -167,8 +167,9 @@ pub(crate) async fn get_user(
     }
 }
 
-/// Handler for `PUT /user/:name`
+/// Handler for `PUT /user/:id`
 pub(crate) async fn update_user(
+    Path(id): Path<Uuid>,
     state: Extension<Arc<State>>,
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
@@ -176,7 +177,7 @@ pub(crate) async fn update_user(
 }
 
 /// Handler for `POST /user/verify`
-pub(crate) async fn create_verify_entry(
+pub(crate) async fn create_verify_user(
     state: Extension<Arc<State>>,
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {

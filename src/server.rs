@@ -72,7 +72,7 @@ fn try_register_oso() -> Result<Oso> {
 
 /// Attempt to setup the CORS layer.
 fn try_cors_layer() -> Result<CorsLayer> {
-    use http::Method;
+    use axum::http::Method;
 
     if cfg!(debug_assertions) {
         Ok(CorsLayer::permissive())
@@ -113,10 +113,14 @@ async fn try_app() -> Result<Router> {
 
     Ok(Router::new()
         .route("/", get(|| async { "Hello, World!" }))
-        .route("/user", get(handlers::get_user).post(handlers::create_user))
+        .route("/user", post(handlers::create_user))
         .route(
             "/user/verify",
-            post(handlers::create_verify_entry).put(handlers::update_verify_user),
+            post(handlers::create_verify_user).put(handlers::update_verify_user),
+        )
+        .route(
+            "/user/:id",
+            get(handlers::get_user).put(handlers::update_user),
         )
         .route("/login", post(handlers::login).delete(handlers::logout))
         .layer(middleware_stack))
