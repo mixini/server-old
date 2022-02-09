@@ -227,7 +227,8 @@ pub(crate) async fn update_verify_user(
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     // value is user id
-    let maybe_id: Option<String> = state.redis_manager.clone().get(&input.key).await?;
+    let prefixed_key = format!("{}{}", VERIFY_KEY_PREFIX, &input.key);
+    let maybe_id: Option<String> = state.redis_manager.clone().get(&prefixed_key).await?;
 
     match maybe_id {
         Some(id) => {
