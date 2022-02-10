@@ -1,5 +1,5 @@
 [package]
-name = "mixini"
+name = "mixini-server"
 version = "0.1.0"
 authors = ["Allen Bui <fairingrey@gmail.com>"]
 edition = "2021"
