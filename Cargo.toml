@@ -40,7 +40,6 @@ sqlx = { version = "0.5.10", features = [
     "json",
     "macros",
 ] }
-tantivy = "0.16.1"
 thiserror = "1.0.30"
 tokio = { version = "1.16.1", features = ["rt-multi-thread", "macros", "sync"] }
 tower = "0.4.11"
