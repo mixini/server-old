@@ -1,4 +1,4 @@
--- Add migration script here
+-- Add up migration script here
 CREATE TABLE users (
     id UUID PRIMARY KEY NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
