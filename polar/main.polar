@@ -1,10 +1,10 @@
 # User rules
 
 ## all users can read other users
-allow(user: User, "read", other_user: User);
+allow(_user: User, "read", _other_user: User);
 
 ## admins can update or delete other users
-allow(user: User, action, other_user: User) if
+allow(user: User, action, _other_user: User) if
     user.role = "administrator" and
     (action = "update" or action = "delete");
 
