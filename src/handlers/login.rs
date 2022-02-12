@@ -103,6 +103,7 @@ pub(crate) async fn login(
     let user_info = UserInfo {
         id: user.id,
         name: user.name,
+        role: user.role,
     };
 
     state

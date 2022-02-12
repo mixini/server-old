@@ -10,7 +10,7 @@ use redis::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{error::MixiniError, server::State};
+use crate::{error::MixiniError, models::Role, server::State};
 
 pub(crate) const SESSION_COOKIE_NAME: &str = "msessid";
 pub(crate) const SESSION_KEY_PREFIX: &str = "session:";
@@ -27,6 +27,7 @@ pub(crate) enum Auth {
 pub(crate) struct UserInfo {
     pub(crate) id: Uuid,
     pub(crate) name: String,
+    pub(crate) role: Role,
 }
 
 impl ToRedisArgs for UserInfo {
