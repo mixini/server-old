@@ -65,7 +65,7 @@ fn try_register_oso() -> Result<Oso> {
     oso.register_class(User::get_polar_class())?;
 
     // NOTE: load oso rule files here
-    oso.load_files(vec!["polar/base.polar"])?;
+    oso.load_files(vec!["polar/main.polar"])?;
 
     Ok(oso)
 }

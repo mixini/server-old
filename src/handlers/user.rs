@@ -132,9 +132,14 @@ pub(crate) async fn get_user(
 ) -> Result<Response<Body>, MixiniError> {
     let mut db_conn = state.db_pool.acquire().await?;
 
-    match sqlx::query_as!(User, r#"SELECT * FROM users WHERE id = $1"#, id)
-        .fetch_optional(&mut db_conn)
-        .await?
+    match sqlx::query_as!(
+        User,
+        r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
+        FROM users WHERE id = $1"#,
+        id
+    )
+    .fetch_optional(&mut db_conn)
+    .await?
     {
         Some(user) => {
             // if user is self, allow email to be seen
@@ -173,7 +178,17 @@ pub(crate) async fn update_user(
     state: Extension<Arc<State>>,
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
-    todo!()
+    match auth {
+        Auth::KnownUser(user_info) => {
+            let mut db_conn = state.db_pool.acquire().await?;
+
+            todo!()
+        }
+        Auth::UnknownUser => Ok(Response::builder()
+            .status(StatusCode::FORBIDDEN)
+            .body(Body::empty())
+            .unwrap()),
+    }
 }
 
 /// Handler for `POST /user/verify`
@@ -185,7 +200,8 @@ pub(crate) async fn create_verify_user(
         Auth::KnownUser(user_info) => {
             let mut db_conn = state.db_pool.acquire().await?;
 
-            let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_info.id)
+            let user: User = sqlx::query_as(r#"SELECT * FROM users WHERE id = $1"#)
+                .bind(user_info.id)
                 .fetch_one(&mut db_conn)
                 .await?;
 
@@ -236,9 +252,13 @@ pub(crate) async fn update_verify_user(
 
             let mut db_conn = state.db_pool.acquire().await?;
 
-            sqlx::query_as!(User, "UPDATE users SET verified = TRUE WHERE id = $1", id)
-                .execute(&mut db_conn)
-                .await?;
+            sqlx::query_as!(
+                User,
+                r#"UPDATE users SET verified = TRUE WHERE id = $1"#,
+                id
+            )
+            .execute(&mut db_conn)
+            .await?;
 
             Ok(Response::builder()
                 .status(StatusCode::OK)

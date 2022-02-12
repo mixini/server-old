@@ -15,12 +15,14 @@ use crate::{error::MixiniError, server::State};
 pub(crate) const SESSION_COOKIE_NAME: &str = "msessid";
 pub(crate) const SESSION_KEY_PREFIX: &str = "session:";
 
+/// The authorization of a user making a request.
 #[derive(Debug)]
 pub(crate) enum Auth {
     KnownUser(UserInfo),
     UnknownUser,
 }
 
+/// Contains information about the user logged in.
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct UserInfo {
     pub(crate) id: Uuid,

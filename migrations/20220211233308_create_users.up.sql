@@ -8,7 +8,7 @@ CREATE TABLE users (
     name TEXT NOT NULL,
     email VARCHAR(254) NOT NULL,
     UNIQUE (name, email),
-    role ROLE NOT NULL,
+    role role NOT NULL DEFAULT 'member',
     password TEXT NOT NULL,
     verified BOOLEAN NOT NULL DEFAULT FALSE
 );

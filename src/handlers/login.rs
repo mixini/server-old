@@ -65,9 +65,14 @@ pub(crate) async fn login(
 
     let (name, password) = (input.name, HASHER.hash(&input.password).unwrap());
 
-    let user = sqlx::query_as!(User, "SELECT * FROM users WHERE name = $1", name)
-        .fetch_one(&mut db_conn)
-        .await?;
+    let user = sqlx::query_as!(
+        User,
+        r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
+        FROM users WHERE name = $1"#,
+        name
+    )
+    .fetch_one(&mut db_conn)
+    .await?;
 
     let checker = HashBuilder::from_phc(&user.password).unwrap();
 
@@ -81,7 +86,7 @@ pub(crate) async fn login(
         // password needs to be updated
         sqlx::query_as!(
             User,
-            "UPDATE users SET password = $2 WHERE id = $1",
+            r#"UPDATE users SET password = $2 WHERE id = $1"#,
             user.id,
             password
         )
