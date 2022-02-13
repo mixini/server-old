@@ -12,19 +12,19 @@ use ulid::Ulid;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::auth::Auth;
 use crate::error::MixiniError;
 use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
 use crate::server::State;
 use crate::utils::{mail::send_email_verification_request, pass::HASHER, RKeys};
+use crate::{auth::Auth, models::Role};
 
 const VERIFY_KEY_PREFIX: &str = "verify:";
 const VERIFY_EXPIRY_SECONDS: usize = 86400;
 
 /// The form input for `POST /user`
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct NewUserInput {
+pub(crate) struct CreateUser {
     /// The provided username.
     #[validate(
         length(
@@ -37,10 +37,10 @@ pub(crate) struct NewUserInput {
             message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
         )
     )]
-    pub(crate) name: String,
+    name: String,
     /// The provided email.
     #[validate(email(message = "Must be a valid email address."))]
-    pub(crate) email: String,
+    email: String,
     /// The provided password.
     #[validate(
         length(
@@ -53,12 +53,46 @@ pub(crate) struct NewUserInput {
             message = "Must be alphanumeric and contain at least one number."
         )
     )]
-    pub(crate) password: String,
+    password: String,
+}
+
+/// The form input for `PUT /user/:id`
+#[derive(Debug, Validate, Deserialize)]
+pub(crate) struct UpdateUser {
+    /// The user ID of the user to be changed.
+    id: Uuid,
+    #[validate(
+        length(
+            min = 5,
+            max = 32,
+            message = "Minimum length is 5 characters, maximum is 32"
+        ),
+        regex(
+            path = "RE_USERNAME",
+            message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
+        )
+    )]
+    name: Option<String>,
+    #[validate(email(message = "Must be a valid email address."))]
+    email: Option<String>,
+    role: Option<Role>,
+    #[validate(
+        length(
+            min = 8,
+            max = 128,
+            message = "Minimum length is 8 characters, maximum is 128"
+        ),
+        regex(
+            path = "RE_PASSWORD",
+            message = "Must be alphanumeric and contain at least one number."
+        )
+    )]
+    password: Option<String>,
 }
 
 /// The form input for `PUT /user/verify`
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct VerifyInput {
+pub(crate) struct Verify {
     #[validate(length(
         equal = 32,
         message = "Length of this key must be exactly 32 characters."
@@ -69,16 +103,16 @@ pub(crate) struct VerifyInput {
 /// The response output for `GET /user/:name`
 #[derive(Debug, Serialize)]
 pub(crate) struct UserResponse {
-    pub(crate) id: Uuid,
-    pub(crate) created_at: DateTime<Utc>,
-    pub(crate) updated_at: DateTime<Utc>,
-    pub(crate) name: String,
-    pub(crate) email: Option<String>,
+    id: Uuid,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+    name: String,
+    email: Option<String>,
 }
 
 /// Handler for `POST /user`
 pub(crate) async fn create_user(
-    ValidatedForm(input): ValidatedForm<NewUserInput>,
+    ValidatedForm(input): ValidatedForm<CreateUser>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     // check if either this username or email already exist in our database
@@ -185,7 +219,7 @@ pub(crate) async fn update_user(
             todo!()
         }
         Auth::UnknownUser => Ok(Response::builder()
-            .status(StatusCode::FORBIDDEN)
+            .status(StatusCode::UNAUTHORIZED)
             .body(Body::empty())
             .unwrap()),
     }
@@ -239,7 +273,7 @@ pub(crate) async fn create_verify_user(
 
 /// Handler for `PUT /user/verify`
 pub(crate) async fn update_verify_user(
-    ValidatedForm(input): ValidatedForm<VerifyInput>,
+    ValidatedForm(input): ValidatedForm<Verify>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     // value is user id

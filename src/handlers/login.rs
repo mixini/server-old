@@ -29,7 +29,7 @@ lazy_static! {
 
 /// The form input of a `POST /user/login` request.
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct LoginInput {
+pub(crate) struct Login {
     #[validate(
         length(
             min = 5,
@@ -41,7 +41,7 @@ pub(crate) struct LoginInput {
             message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
         )
     )]
-    pub(crate) name: String,
+    name: String,
     #[validate(
         length(
             min = 8,
@@ -53,12 +53,12 @@ pub(crate) struct LoginInput {
             message = "Must be alphanumeric and contain at least one number."
         )
     )]
-    pub(crate) password: String,
+    password: String,
 }
 
 /// Handler for `POST /login`
 pub(crate) async fn login(
-    ValidatedForm(input): ValidatedForm<LoginInput>,
+    ValidatedForm(input): ValidatedForm<Login>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     let mut db_conn = state.db_pool.acquire().await?;
