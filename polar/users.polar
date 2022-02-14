@@ -10,7 +10,7 @@ allow_field(user: User, "READ", other_user: User, field) if
     user.id == other_user.id and
     field in ["name", "created_at", "updated_at", "role", "email"];
 
-## anyone read names, created_at, and role of other users
+## anyone can read ids, names, created_at, and role of other users
 allow_field(_, "READ", _other_user: User, field: String) if
     field in ["name", "created_at", "role"];
 

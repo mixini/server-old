@@ -20,7 +20,9 @@ lettre = { version = "0.10.0-rc.4", features = [
     "serde",
 ] }
 libreauth = "0.14.1"
-oso = { version = "0.26.0", features = ["uuid-07"] }
+oso = { git = "https://github.com/fairingrey/oso", branch = "rust-addl-interface", features = [
+    "uuid-07",
+] }
 oxide-auth = "0.5.1"
 oxide-auth-axum = "0.1.0"
 rand = "0.8.4"

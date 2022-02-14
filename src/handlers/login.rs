@@ -12,7 +12,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use validator::Validate;
 
-use crate::auth::{UserInfo, SESSION_COOKIE_NAME, SESSION_KEY_PREFIX};
+use crate::auth::{SESSION_COOKIE_NAME, SESSION_KEY_PREFIX};
 use crate::error::MixiniError;
 use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
@@ -100,17 +100,7 @@ pub(crate) async fn login(
         prefixed_key,
     } = RKeys::generate(SESSION_KEY_PREFIX);
 
-    let user_info = UserInfo {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-    };
-
-    state
-        .redis_manager
-        .clone()
-        .set(&prefixed_key, user_info)
-        .await?;
+    state.redis_manager.clone().set(&prefixed_key, user).await?;
 
     Ok(Response::builder()
         .status(StatusCode::OK)

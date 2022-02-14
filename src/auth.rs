@@ -3,14 +3,9 @@ use axum::{
     extract::{Extension, FromRequest, RequestParts, TypedHeader},
     headers::Cookie,
 };
-use redis::{
-    AsyncCommands, ErrorKind as RedisErrorKind, FromRedisValue, RedisError, RedisResult,
-    RedisWrite, ToRedisArgs, Value as RedisValue,
-};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use redis::AsyncCommands;
 
-use crate::{error::MixiniError, models::Role, server::State};
+use crate::{error::MixiniError, models::User, server::State};
 
 pub(crate) const SESSION_COOKIE_NAME: &str = "msessid";
 pub(crate) const SESSION_KEY_PREFIX: &str = "session:";
@@ -18,38 +13,8 @@ pub(crate) const SESSION_KEY_PREFIX: &str = "session:";
 /// The authorization of a user making a request.
 #[derive(Debug)]
 pub(crate) enum Auth {
-    KnownUser(UserInfo),
+    KnownUser(User),
     UnknownUser,
-}
-
-/// Contains information about the user logged in.
-#[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct UserInfo {
-    pub(crate) id: Uuid,
-    pub(crate) name: String,
-    pub(crate) role: Role,
-}
-
-impl ToRedisArgs for UserInfo {
-    fn write_redis_args<W>(&self, out: &mut W)
-    where
-        W: ?Sized + RedisWrite,
-    {
-        out.write_arg(&bincode::serialize(self).expect("Failed to bincode-serialize user info"));
-    }
-}
-
-impl FromRedisValue for UserInfo {
-    fn from_redis_value(v: &RedisValue) -> RedisResult<Self> {
-        if let RedisValue::Data(data) = v {
-            Ok(bincode::deserialize(data).expect("Failed to bincode-deserialize user info"))
-        } else {
-            Err(RedisError::from((
-                RedisErrorKind::TypeError,
-                "Response type not convertible",
-            )))
-        }
-    }
 }
 
 #[async_trait]
@@ -75,7 +40,7 @@ where
             Some(base_key) => {
                 let prefixed_key = format!("{}{}", SESSION_KEY_PREFIX, &base_key);
                 match state.redis_manager.clone().get(&prefixed_key).await? {
-                    Some(user_info) => Ok(Auth::KnownUser(user_info)),
+                    Some(user) => Ok(Auth::KnownUser(user)),
                     None => Ok(Auth::UnknownUser),
                 }
             }

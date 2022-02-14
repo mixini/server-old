@@ -7,7 +7,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use ulid::Ulid;
 use uuid::Uuid;
 use validator::Validate;
@@ -108,6 +108,7 @@ pub(crate) struct UserResponse {
     updated_at: Option<DateTime<Utc>>,
     name: String,
     email: Option<String>,
+    role: Role,
 }
 
 /// Handler for `POST /user`
@@ -165,6 +166,7 @@ pub(crate) async fn get_user(
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
     let mut db_conn = state.db_pool.acquire().await?;
+    let oso = state.oso.lock().await;
 
     match sqlx::query_as!(
         User,
@@ -176,23 +178,35 @@ pub(crate) async fn get_user(
     .await?
     {
         Some(user) => {
-            // if user is self, allow email to be seen
-            let email = match auth {
-                Auth::KnownUser(requesting_user_info) => {
-                    if requesting_user_info.id == user.id {
-                        Some(user.email)
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
+            let authorized_fields: HashSet<String> = if let Auth::KnownUser(this_user) = auth {
+                oso.authorized_fields(this_user, "READ", user.clone())?
+            } else {
+                oso.authorized_fields("guest", "READ", user.clone())?
             };
+
+            let created_at = if authorized_fields.contains("created_at") {
+                Some(user.created_at)
+            } else {
+                None
+            };
+            let updated_at = if authorized_fields.contains("updated_at") {
+                Some(user.updated_at)
+            } else {
+                None
+            };
+            let email = if authorized_fields.contains("email") {
+                Some(user.email)
+            } else {
+                None
+            };
+
             let user_response = UserResponse {
                 id: user.id,
-                created_at: Some(user.created_at),
-                updated_at: Some(user.updated_at),
+                created_at,
+                updated_at,
                 name: user.name,
                 email,
+                role: user.role,
             };
             Ok(Response::builder()
                 .status(StatusCode::OK)
@@ -213,7 +227,7 @@ pub(crate) async fn update_user(
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
     match auth {
-        Auth::KnownUser(user_info) => {
+        Auth::KnownUser(user) => {
             let mut db_conn = state.db_pool.acquire().await?;
 
             todo!()
@@ -231,14 +245,7 @@ pub(crate) async fn create_verify_user(
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
     match auth {
-        Auth::KnownUser(user_info) => {
-            let mut db_conn = state.db_pool.acquire().await?;
-
-            let user: User = sqlx::query_as(r#"SELECT * FROM users WHERE id = $1"#)
-                .bind(user_info.id)
-                .fetch_one(&mut db_conn)
-                .await?;
-
+        Auth::KnownUser(user) => {
             if user.verified {
                 Ok(Response::builder()
                     .status(StatusCode::CONFLICT)

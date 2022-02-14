@@ -2,8 +2,12 @@ use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use crate::impl_redis_rv;
+
 /// User roles
-#[derive(Debug, Clone, PartialEq, sqlx::Type, oso::PolarClass, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Eq, PartialEq, sqlx::Type, oso::PolarClass, Serialize, Deserialize,
+)]
 #[sqlx(type_name = "role", rename_all = "lowercase")]
 pub(crate) enum Role {
     Admin,
@@ -15,7 +19,7 @@ pub(crate) enum Role {
 }
 
 /// User model
-#[derive(Debug, sqlx::FromRow, oso::PolarClass)]
+#[derive(Debug, Clone, sqlx::FromRow, oso::PolarClass, Serialize, Deserialize)]
 pub(crate) struct User {
     #[polar(attribute)]
     pub(crate) id: Uuid,
@@ -30,3 +34,5 @@ pub(crate) struct User {
     #[polar(attribute)]
     pub(crate) verified: bool,
 }
+
+impl_redis_rv!(User, Role);
