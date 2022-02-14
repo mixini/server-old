@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::{DateTime, Utc};
+use std::fmt;
 use uuid::Uuid;
 
 use crate::impl_redis_rv;
@@ -16,6 +17,13 @@ pub(crate) enum Role {
     Creator,
     Contributor,
     Member,
+}
+
+impl fmt::Display for Role {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = format!("{:?}", self).to_ascii_lowercase();
+        write!(f, "{}", s)
+    }
 }
 
 /// User model

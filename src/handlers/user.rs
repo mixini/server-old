@@ -59,8 +59,6 @@ pub(crate) struct CreateUserForm {
 /// The form input for `PUT /user/:id`
 #[derive(Debug, Validate, Deserialize)]
 pub(crate) struct UpdateUserForm {
-    /// The user ID of the user to be changed.
-    id: Uuid,
     #[validate(
         length(
             min = 5,
@@ -230,14 +228,80 @@ pub(crate) async fn get_user(
 /// Handler for `PUT /user/:id`
 pub(crate) async fn update_user(
     Path(id): Path<Uuid>,
+    ValidatedForm(input): ValidatedForm<UpdateUserForm>,
     state: Extension<Arc<State>>,
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
     match auth {
-        Auth::KnownUser(user) => {
+        Auth::KnownUser(this_user) => {
             let mut db_conn = state.db_pool.acquire().await?;
 
-            todo!()
+            let user = if let Some(user) = sqlx::query_as!(
+                    User,
+                    r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
+                    FROM users WHERE id = $1"#,
+                    id
+                )
+                .fetch_optional(&mut db_conn)
+                .await? { user } else {
+                    return Ok(Response::builder()
+                        .status(StatusCode::FORBIDDEN)
+                        .body(Body::empty())
+                        .unwrap());
+                };
+
+            let mut values = Vec::new();
+
+            if let Some(role) = input.role {
+                if state
+                    .oso
+                    .lock()
+                    .await
+                    .query_rule("allow_assign_role", (this_user.clone(), role))?
+                    .next()
+                    .is_some()
+                {
+                    values.push(format!("role = '{}'", role));
+                } else {
+                    return Ok(Response::builder()
+                        .status(StatusCode::FORBIDDEN)
+                        .body(Body::empty())
+                        .unwrap());
+                }
+            }
+
+            let authorized_fields: HashSet<String> =
+                state
+                    .oso
+                    .lock()
+                    .await
+                    .authorized_fields(this_user, "READ", user.clone())?;
+
+            if let Some(name) = input.name {
+                if authorized_fields.contains("name") {
+                    values.push(format!("name = {}", name));
+                }
+            }
+
+            if let Some(email) = input.email {
+                if authorized_fields.contains("email") {
+                    values.push(format!("email = {}", email));
+                }
+            }
+
+            let values = values.join(",");
+
+            // TODO: Required testing, this is a dynamic query
+            sqlx::query(r#"UPDATE users SET $2 WHERE id = $1"#)
+                .bind(id)
+                .bind(values)
+                .execute(&mut db_conn)
+                .await?;
+
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())
+                .unwrap())
         }
         Auth::UnknownUser => Ok(Response::builder()
             .status(StatusCode::UNAUTHORIZED)
@@ -252,8 +316,8 @@ pub(crate) async fn create_verify_user(
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
     match auth {
-        Auth::KnownUser(user) => {
-            if user.verified {
+        Auth::KnownUser(this_user) => {
+            if this_user.verified {
                 Ok(Response::builder()
                     .status(StatusCode::CONFLICT)
                     .body(Body::from("User email is already verified"))
@@ -267,10 +331,15 @@ pub(crate) async fn create_verify_user(
                 state
                     .redis_manager
                     .clone()
-                    .set_ex(&prefixed_key, user.id.to_string(), VERIFY_EXPIRY_SECONDS)
+                    .set_ex(
+                        &prefixed_key,
+                        this_user.id.to_string(),
+                        VERIFY_EXPIRY_SECONDS,
+                    )
                     .await?;
 
-                send_email_verification_request(&state.mailsender, user.email, base_key).await?;
+                send_email_verification_request(&state.mailsender, this_user.email, base_key)
+                    .await?;
 
                 Ok(Response::builder()
                     .status(StatusCode::OK)
