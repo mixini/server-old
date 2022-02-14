@@ -82,9 +82,7 @@ pub(crate) async fn login(
     };
     if checker.needs_update(Some(PWD_SCHEME_VERSION)) {
         // password needs to be updated
-        let hashed_password = HASHER
-            .hash(&input.password)
-            .expect("hasher somehow failed hashing");
+        let hashed_password = HASHER.hash(&input.password).expect("hasher failed hashing");
         sqlx::query_as!(
             User,
             r#"UPDATE users SET password = $2 WHERE id = $1"#,

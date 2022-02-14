@@ -138,7 +138,7 @@ pub(crate) async fn create_user(
 
     // create new user in db
     let id = Uuid::from(Ulid::new());
-    let password = HASHER.hash(&password).unwrap();
+    let password = HASHER.hash(&password).expect("hasher failed hashing");
 
     sqlx::query_as!(
         User,
