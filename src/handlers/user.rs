@@ -24,7 +24,7 @@ const VERIFY_EXPIRY_SECONDS: usize = 86400;
 
 /// The form input for `POST /user`
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct CreateUser {
+pub(crate) struct CreateUserForm {
     /// The provided username.
     #[validate(
         length(
@@ -58,7 +58,7 @@ pub(crate) struct CreateUser {
 
 /// The form input for `PUT /user/:id`
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct UpdateUser {
+pub(crate) struct UpdateUserForm {
     /// The user ID of the user to be changed.
     id: Uuid,
     #[validate(
@@ -92,7 +92,7 @@ pub(crate) struct UpdateUser {
 
 /// The form input for `PUT /user/verify`
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct Verify {
+pub(crate) struct VerifyForm {
     #[validate(length(
         equal = 32,
         message = "Length of this key must be exactly 32 characters."
@@ -104,15 +104,15 @@ pub(crate) struct Verify {
 #[derive(Debug, Serialize)]
 pub(crate) struct UserResponse {
     id: Uuid,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Option<DateTime<Utc>>,
+    updated_at: Option<DateTime<Utc>>,
     name: String,
     email: Option<String>,
 }
 
 /// Handler for `POST /user`
 pub(crate) async fn create_user(
-    ValidatedForm(input): ValidatedForm<CreateUser>,
+    ValidatedForm(input): ValidatedForm<CreateUserForm>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     // check if either this username or email already exist in our database
@@ -189,8 +189,8 @@ pub(crate) async fn get_user(
             };
             let user_response = UserResponse {
                 id: user.id,
-                created_at: user.created_at,
-                updated_at: user.updated_at,
+                created_at: Some(user.created_at),
+                updated_at: Some(user.updated_at),
                 name: user.name,
                 email,
             };
@@ -273,7 +273,7 @@ pub(crate) async fn create_verify_user(
 
 /// Handler for `PUT /user/verify`
 pub(crate) async fn update_verify_user(
-    ValidatedForm(input): ValidatedForm<Verify>,
+    ValidatedForm(input): ValidatedForm<VerifyForm>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     // value is user id

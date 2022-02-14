@@ -29,7 +29,7 @@ lazy_static! {
 
 /// The form input of a `POST /user/login` request.
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct Login {
+pub(crate) struct LoginForm {
     #[validate(
         length(
             min = 5,
@@ -58,7 +58,7 @@ pub(crate) struct Login {
 
 /// Handler for `POST /login`
 pub(crate) async fn login(
-    ValidatedForm(input): ValidatedForm<Login>,
+    ValidatedForm(input): ValidatedForm<LoginForm>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     let mut db_conn = state.db_pool.acquire().await?;
