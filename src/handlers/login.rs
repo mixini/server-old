@@ -63,20 +63,18 @@ pub(crate) async fn login(
 ) -> Result<Response<Body>, MixiniError> {
     let mut db_conn = state.db_pool.acquire().await?;
 
-    let (name, password) = (input.name, HASHER.hash(&input.password).unwrap());
-
     let user = sqlx::query_as!(
         User,
         r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
         FROM users WHERE name = $1"#,
-        name
+        input.name
     )
     .fetch_one(&mut db_conn)
     .await?;
 
     let checker = HashBuilder::from_phc(&user.password).unwrap();
 
-    if !checker.is_valid(&password) {
+    if !checker.is_valid(&input.password) {
         return Ok(Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .body(Body::empty())
@@ -84,11 +82,14 @@ pub(crate) async fn login(
     };
     if checker.needs_update(Some(PWD_SCHEME_VERSION)) {
         // password needs to be updated
+        let hashed_password = HASHER
+            .hash(&input.password)
+            .expect("hasher somehow failed hashing");
         sqlx::query_as!(
             User,
             r#"UPDATE users SET password = $2 WHERE id = $1"#,
             user.id,
-            password
+            hashed_password
         )
         .execute(&mut db_conn)
         .await?;
