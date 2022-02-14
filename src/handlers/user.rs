@@ -291,7 +291,7 @@ pub(crate) async fn update_user(
 
             let values = values.join(",");
 
-            // TODO: Required testing, this is a dynamic query
+            // TODO: Requires testing, this is a dynamic query
             sqlx::query(r#"UPDATE users SET $2 WHERE id = $1"#)
                 .bind(id)
                 .bind(values)
