@@ -20,7 +20,14 @@ macro_rules! impl_redis_rv {
             impl FromRedisValue for $t {
                 fn from_redis_value(v: &RedisValue) -> RedisResult<Self> {
                     if let RedisValue::Data(data) = v {
-                        Ok(bincode::deserialize(data).expect("Failed to bincode-deserialize"))
+                        let data_result = bincode::deserialize(data);
+                        match data_result {
+                            Ok(data) => Ok(data),
+                            Err(_) => Err(RedisError::from((
+                                RedisErrorKind::IoError,
+                                "Response data not convertible",
+                            ))),
+                        }
                     } else {
                         Err(RedisError::from((
                             RedisErrorKind::TypeError,
