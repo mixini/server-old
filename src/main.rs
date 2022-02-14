@@ -22,7 +22,7 @@ async fn main() -> Result<(), anyhow::Result<()>> {
     }
 
     if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "mixini=debug")
+        std::env::set_var("RUST_LOG", "mixini_server=debug,tower_http=debug")
     }
     tracing_subscriber::fmt::init();
 
