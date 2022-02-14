@@ -166,7 +166,6 @@ pub(crate) async fn get_user(
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
     let mut db_conn = state.db_pool.acquire().await?;
-    let oso = state.oso.lock().await;
 
     match sqlx::query_as!(
         User,
@@ -179,9 +178,17 @@ pub(crate) async fn get_user(
     {
         Some(user) => {
             let authorized_fields: HashSet<String> = if let Auth::KnownUser(this_user) = auth {
-                oso.authorized_fields(this_user, "READ", user.clone())?
+                state
+                    .oso
+                    .lock()
+                    .await
+                    .authorized_fields(this_user, "READ", user.clone())?
             } else {
-                oso.authorized_fields("guest", "READ", user.clone())?
+                state
+                    .oso
+                    .lock()
+                    .await
+                    .authorized_fields("guest", "READ", user.clone())?
             };
 
             let created_at = if authorized_fields.contains("created_at") {
