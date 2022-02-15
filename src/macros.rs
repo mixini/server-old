@@ -1,6 +1,4 @@
 /// The macro below basically allows any struct that is Serialize + Deserialize to be used as Redis args and values
-/// Relies on bincode and is generally (and most hopefully) expected not to break
-/// NOTE: If it does break, well... :sadface:
 #[macro_export]
 macro_rules! impl_redis_rv {
     ($( $t:ty ),+) => {
