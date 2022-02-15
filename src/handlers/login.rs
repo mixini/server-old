@@ -11,14 +11,16 @@ use serde::Deserialize;
 use std::sync::Arc;
 use validator::Validate;
 
-use crate::auth::{SESSION_COOKIE_NAME, SESSION_DURATION_SECS, SESSION_KEY_PREFIX};
-use crate::error::MixiniError;
-use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
-use crate::models::User;
-use crate::server::State;
-use crate::utils::{
-    pass::{HASHER, PWD_SCHEME_VERSION},
-    RKeys,
+use crate::{
+    auth::{SESSION_COOKIE_NAME, SESSION_DURATION_SECS, SESSION_KEY_PREFIX},
+    error::MixiniError,
+    handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME},
+    models::User,
+    server::State,
+    utils::{
+        pass::{HASHER, PWD_SCHEME_VERSION},
+        RKeys,
+    },
 };
 
 lazy_static! {

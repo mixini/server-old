@@ -13,14 +13,13 @@ use ulid::Ulid;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
-use crate::models::User;
-use crate::server::State;
-use crate::utils::{mail::send_email_verification_request, pass::HASHER, RKeys};
-use crate::{auth::Auth, models::Role};
 use crate::{
-    auth::{SESSION_COOKIE_NAME, SESSION_KEY_PREFIX},
+    auth::{Auth, SESSION_COOKIE_NAME, SESSION_KEY_PREFIX},
     error::MixiniError,
+    handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME},
+    models::{Role, User},
+    server::State,
+    utils::{mail::send_email_verification_request, pass::HASHER, RKeys},
 };
 
 const VERIFY_KEY_PREFIX: &str = "verify:";
