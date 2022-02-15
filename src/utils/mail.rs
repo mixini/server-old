@@ -22,7 +22,7 @@ pub(crate) async fn send_email_verification_request(
 ) -> Result<Response, MixiniError> {
     let email = email.parse().expect("somehow not verified?");
     let mail = Message::builder()
-        .from(SMTP_EMAIL.clone())
+        .from(SMTP_EMAIL.to_owned())
         .to(email)
         .subject("Your Mixini email verification")
         .body(format!(

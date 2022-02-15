@@ -4,7 +4,7 @@ use axum::{
     headers::Cookie,
     http::{header, Response, StatusCode},
 };
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use lazy_static::lazy_static;
 use libreauth::pass::HashBuilder;
 use redis::AsyncCommands;
@@ -12,7 +12,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use validator::Validate;
 
-use crate::auth::{SESSION_COOKIE_NAME, SESSION_KEY_PREFIX};
+use crate::auth::{SESSION_COOKIE_NAME, SESSION_DURATION, SESSION_KEY_PREFIX};
 use crate::error::MixiniError;
 use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
@@ -24,7 +24,6 @@ use crate::utils::{
 
 lazy_static! {
     static ref DOMAIN: String = std::env::var("DOMAIN").expect("DOMAIN is not set in env");
-    static ref LOGIN_DURATION: Duration = Duration::days(30);
 }
 
 /// The form input of a `POST /user/login` request.
@@ -99,7 +98,11 @@ pub(crate) async fn login(
         prefixed_key,
     } = RKeys::generate(SESSION_KEY_PREFIX);
 
-    state.redis_manager.clone().set(&prefixed_key, user).await?;
+    state
+        .redis_manager
+        .to_owned()
+        .set(&prefixed_key, user)
+        .await?;
 
     Ok(Response::builder()
         .status(StatusCode::OK)
@@ -110,7 +113,7 @@ pub(crate) async fn login(
                 cname = SESSION_COOKIE_NAME,
                 cval = base_key,
                 domain = *DOMAIN,
-                expiredate = (Utc::now() + *LOGIN_DURATION).to_rfc2822()
+                expiredate = (Utc::now() + *SESSION_DURATION).to_rfc2822()
             ),
         )
         .body(Body::empty())
@@ -124,7 +127,7 @@ pub(crate) async fn logout(
 ) -> Result<Response<Body>, MixiniError> {
     if let Some(sessid) = cookie.get(SESSION_COOKIE_NAME) {
         let prefixed_key = format!("{}{}", SESSION_KEY_PREFIX, sessid);
-        state.redis_manager.clone().del(&prefixed_key).await?;
+        state.redis_manager.to_owned().del(&prefixed_key).await?;
         Ok(Response::builder()
             .status(StatusCode::OK)
             .header(

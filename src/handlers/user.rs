@@ -1,7 +1,8 @@
 use anyhow::format_err;
 use axum::{
     body::Body,
-    extract::{Extension, Path},
+    extract::{Extension, Path, TypedHeader},
+    headers::Cookie,
     http::{Response, StatusCode},
 };
 use chrono::{DateTime, Utc};
@@ -180,13 +181,13 @@ pub(crate) async fn get_user(
                     .oso
                     .lock()
                     .await
-                    .authorized_fields(this_user, "READ", user.clone())?
+                    .authorized_fields(this_user, "READ", user.to_owned())?
             } else {
                 state
                     .oso
                     .lock()
                     .await
-                    .authorized_fields("guest", "READ", user.clone())?
+                    .authorized_fields("guest", "READ", user.to_owned())?
             };
 
             let created_at = if authorized_fields.contains("created_at") {
@@ -257,7 +258,7 @@ pub(crate) async fn update_user(
                     .oso
                     .lock()
                     .await
-                    .query_rule("allow_assign_role", (this_user.clone(), role))?
+                    .query_rule("allow_assign_role", (this_user.to_owned(), role))?
                     .next()
                     .is_some()
                 {
@@ -275,7 +276,7 @@ pub(crate) async fn update_user(
                     .oso
                     .lock()
                     .await
-                    .authorized_fields(this_user, "READ", user.clone())?;
+                    .authorized_fields(this_user, "READ", user.to_owned())?;
 
             if let Some(name) = input.name {
                 if authorized_fields.contains("name") {
@@ -310,6 +311,51 @@ pub(crate) async fn update_user(
     }
 }
 
+/// Handler for `DELETE /user/:id`
+pub(crate) async fn delete_user(
+    Path(id): Path<Uuid>,
+    TypedHeader(cookie): TypedHeader<Cookie>,
+    state: Extension<Arc<State>>,
+    auth: Auth,
+) -> Result<Response<Body>, MixiniError> {
+    match auth {
+        Auth::KnownUser(this_user) => {
+            let mut db_conn = state.db_pool.acquire().await?;
+
+            let user = if let Some(user) = sqlx::query_as!(
+                User,
+                r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
+                FROM users WHERE id = $1"#,
+                id
+            )
+            .fetch_optional(&mut db_conn)
+            .await? { user } else {
+                return Ok(Response::builder()
+                    .status(StatusCode::FORBIDDEN)
+                    .body(Body::empty())
+                    .unwrap());
+            };
+
+            if state
+                .oso
+                .lock()
+                .await
+                .is_allowed(this_user, "DELETE", user.to_owned())?
+            {
+                sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, user.id)
+                    .execute(&mut db_conn)
+                    .await?;
+            }
+
+            todo!()
+        }
+        Auth::UnknownUser => Ok(Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body(Body::empty())
+            .unwrap()),
+    }
+}
+
 /// Handler for `POST /user/verify`
 pub(crate) async fn create_verify_user(
     state: Extension<Arc<State>>,
@@ -330,7 +376,7 @@ pub(crate) async fn create_verify_user(
 
                 state
                     .redis_manager
-                    .clone()
+                    .to_owned()
                     .set_ex(
                         &prefixed_key,
                         this_user.id.to_string(),
@@ -361,7 +407,7 @@ pub(crate) async fn update_verify_user(
 ) -> Result<Response<Body>, MixiniError> {
     // value is user id
     let prefixed_key = format!("{}{}", VERIFY_KEY_PREFIX, &input.key);
-    let maybe_id: Option<String> = state.redis_manager.clone().get(&prefixed_key).await?;
+    let maybe_id: Option<String> = state.redis_manager.to_owned().get(&prefixed_key).await?;
 
     match maybe_id {
         Some(id) => {

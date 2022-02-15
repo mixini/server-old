@@ -121,7 +121,9 @@ async fn try_app() -> Result<Router> {
         )
         .route(
             "/user/:id",
-            get(handlers::get_user).put(handlers::update_user),
+            get(handlers::get_user)
+                .put(handlers::update_user)
+                .delete(handlers::delete_user),
         )
         .route("/login", post(handlers::login).delete(handlers::logout))
         .layer(middleware_stack))
