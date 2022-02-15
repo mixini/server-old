@@ -4,7 +4,6 @@ use axum::{
     headers::Cookie,
     http::{header, Response, StatusCode},
 };
-use lazy_static::lazy_static;
 use libreauth::pass::HashBuilder;
 use redis::AsyncCommands;
 use serde::Deserialize;
@@ -12,7 +11,7 @@ use std::sync::Arc;
 use validator::Validate;
 
 use crate::{
-    auth::{SESSION_COOKIE_NAME, SESSION_DURATION_SECS, SESSION_KEY_PREFIX},
+    constants::{DOMAIN, SESSION_COOKIE_NAME, SESSION_DURATION_SECS, SESSION_KEY_PREFIX},
     error::MixiniError,
     handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME},
     models::User,
@@ -22,10 +21,6 @@ use crate::{
         RKeys,
     },
 };
-
-lazy_static! {
-    static ref DOMAIN: String = std::env::var("DOMAIN").expect("DOMAIN is not set in env");
-}
 
 /// The form input of a `POST /user/login` request.
 #[derive(Debug, Validate, Deserialize)]

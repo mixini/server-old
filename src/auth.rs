@@ -5,11 +5,12 @@ use axum::{
 };
 use redis::AsyncCommands;
 
-use crate::{error::MixiniError, models::User, server::State};
-
-pub(crate) const SESSION_COOKIE_NAME: &str = "msessid";
-pub(crate) const SESSION_KEY_PREFIX: &str = "session:";
-pub(crate) const SESSION_DURATION_SECS: usize = 1209600;
+use crate::{
+    constants::{SESSION_COOKIE_NAME, SESSION_DURATION_SECS, SESSION_KEY_PREFIX},
+    error::MixiniError,
+    models::User,
+    server::State,
+};
 
 /// The authorization of a user making a request.
 ///

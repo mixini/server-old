@@ -14,16 +14,16 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::{
-    auth::{Auth, SESSION_COOKIE_NAME, SESSION_KEY_PREFIX},
+    auth::Auth,
+    constants::{
+        SESSION_COOKIE_NAME, SESSION_KEY_PREFIX, VERIFY_EXPIRY_SECONDS, VERIFY_KEY_PREFIX,
+    },
     error::MixiniError,
     handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME},
     models::{Role, User},
     server::State,
     utils::{mail::send_email_verification_request, pass::HASHER, RKeys},
 };
-
-const VERIFY_KEY_PREFIX: &str = "verify:";
-const VERIFY_EXPIRY_SECONDS: usize = 86400;
 
 /// The form input for `POST /user`
 #[derive(Debug, Validate, Deserialize)]
