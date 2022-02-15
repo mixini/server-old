@@ -13,12 +13,15 @@ use ulid::Ulid;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::error::MixiniError;
 use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
 use crate::server::State;
 use crate::utils::{mail::send_email_verification_request, pass::HASHER, RKeys};
 use crate::{auth::Auth, models::Role};
+use crate::{
+    auth::{SESSION_COOKIE_NAME, SESSION_KEY_PREFIX},
+    error::MixiniError,
+};
 
 const VERIFY_KEY_PREFIX: &str = "verify:";
 const VERIFY_EXPIRY_SECONDS: usize = 86400;
@@ -345,9 +348,22 @@ pub(crate) async fn delete_user(
                 sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, user.id)
                     .execute(&mut db_conn)
                     .await?;
-            }
 
-            todo!()
+                // also delete cookie in store
+                let base_key = cookie.get(SESSION_COOKIE_NAME).expect("cookie monster!?");
+                let prefixed_key = format!("{}{}", SESSION_KEY_PREFIX, &base_key);
+                state.redis_manager.to_owned().del(&prefixed_key).await?;
+
+                Ok(Response::builder()
+                    .status(StatusCode::OK)
+                    .body(Body::empty())
+                    .unwrap())
+            } else {
+                Ok(Response::builder()
+                    .status(StatusCode::FORBIDDEN)
+                    .body(Body::empty())
+                    .unwrap())
+            }
         }
         Auth::UnknownUser => Ok(Response::builder()
             .status(StatusCode::UNAUTHORIZED)

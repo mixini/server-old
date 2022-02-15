@@ -4,7 +4,6 @@ use axum::{
     headers::Cookie,
     http::{header, Response, StatusCode},
 };
-use chrono::Utc;
 use lazy_static::lazy_static;
 use libreauth::pass::HashBuilder;
 use redis::AsyncCommands;
@@ -12,7 +11,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use validator::Validate;
 
-use crate::auth::{SESSION_COOKIE_NAME, SESSION_DURATION, SESSION_KEY_PREFIX};
+use crate::auth::{SESSION_COOKIE_NAME, SESSION_DURATION_SECS, SESSION_KEY_PREFIX};
 use crate::error::MixiniError;
 use crate::handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME};
 use crate::models::User;
@@ -109,11 +108,11 @@ pub(crate) async fn login(
         .header(
             header::SET_COOKIE,
             format!(
-                "{cname}={cval}; Secure; HttpOnly; Domain={domain}; Expires={expiredate}",
+                "{cname}={cval}; Secure; HttpOnly; Domain={domain}; Max-Age={sd}",
                 cname = SESSION_COOKIE_NAME,
                 cval = base_key,
                 domain = *DOMAIN,
-                expiredate = (Utc::now() + *SESSION_DURATION).to_rfc2822()
+                sd = SESSION_DURATION_SECS
             ),
         )
         .body(Body::empty())
@@ -133,10 +132,9 @@ pub(crate) async fn logout(
             .header(
                 header::SET_COOKIE,
                 format!(
-                    "{cname}=expired; Secure; HttpOnly; Domain={domain}; Expires={expiredate}",
+                    "{cname}=expired; Secure; HttpOnly; Domain={domain}; Max-Age=-1",
                     cname = SESSION_COOKIE_NAME,
                     domain = *DOMAIN,
-                    expiredate = Utc::now().to_rfc2822()
                 ),
             )
             .body(Body::empty())

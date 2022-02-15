@@ -3,8 +3,6 @@ use axum::{
     extract::{Extension, FromRequest, RequestParts, TypedHeader},
     headers::Cookie,
 };
-use chrono::Duration;
-use lazy_static::lazy_static;
 use redis::AsyncCommands;
 
 use crate::{error::MixiniError, models::User, server::State};
@@ -12,11 +10,6 @@ use crate::{error::MixiniError, models::User, server::State};
 pub(crate) const SESSION_COOKIE_NAME: &str = "msessid";
 pub(crate) const SESSION_KEY_PREFIX: &str = "session:";
 pub(crate) const SESSION_DURATION_SECS: usize = 1209600;
-
-lazy_static! {
-    pub(crate) static ref SESSION_DURATION: Duration =
-        Duration::seconds(SESSION_DURATION_SECS as i64);
-}
 
 /// The authorization of a user making a request.
 ///
@@ -66,11 +59,3 @@ where
         }
     }
 }
-
-// An exit middleware fn that tells the client to refresh the expiry on the session cookie
-// pub(crate) async fn map_refresh_session(
-//     res: Response<Body>,
-// ) -> Result<Response<Body>, MixiniError> {
-//     //let headers = res.headers_mut();
-//     todo!()
-// }
