@@ -4,17 +4,21 @@ use axum::{
     headers::Cookie,
     http::{header, Response, StatusCode},
 };
+use entity::{prelude::*, user_account};
 use libreauth::pass::HashBuilder;
 use redis::AsyncCommands;
+use sea_orm::{entity::*, prelude::*};
 use serde::Deserialize;
 use std::sync::Arc;
 use validator::Validate;
 
 use crate::{
-    constants::{DOMAIN, SESSION_COOKIE_NAME, SESSION_DURATION_SECS, SESSION_KEY_PREFIX},
+    constants::{
+        DOMAIN, RE_PASSWORD, RE_USERNAME, SESSION_COOKIE_NAME, SESSION_DURATION_SECS,
+        SESSION_KEY_PREFIX,
+    },
     error::MixiniError,
-    handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME},
-    models::User,
+    handlers::ValidatedForm,
     server::State,
     utils::{
         pass::{HASHER, PWD_SCHEME_VERSION},
@@ -53,23 +57,25 @@ pub(crate) struct LoginForm {
 
 /// Handler for `POST /login`
 pub(crate) async fn login(
-    ValidatedForm(input): ValidatedForm<LoginForm>,
+    ValidatedForm(login): ValidatedForm<LoginForm>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
-    let mut db_conn = state.db_pool.acquire().await?;
-
-    let user = sqlx::query_as!(
-        User,
-        r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
-        FROM users WHERE name = $1"#,
-        input.name
-    )
-    .fetch_one(&mut db_conn)
-    .await?;
+    let user = if let Some(user) = UserAccount::find()
+        .filter(user_account::Column::Name.eq(login.name))
+        .one(&state.db)
+        .await?
+    {
+        user
+    } else {
+        return Ok(Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::empty())
+            .unwrap());
+    };
 
     let checker = HashBuilder::from_phc(&user.password).unwrap();
 
-    if !checker.is_valid(&input.password) {
+    if !checker.is_valid(&login.password) {
         return Ok(Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .body(Body::empty())
@@ -77,15 +83,10 @@ pub(crate) async fn login(
     };
     if checker.needs_update(Some(PWD_SCHEME_VERSION)) {
         // password needs to be updated
-        let hashed_password = HASHER.hash(&input.password).expect("hasher failed hashing");
-        sqlx::query_as!(
-            User,
-            r#"UPDATE users SET password = $2 WHERE id = $1"#,
-            user.id,
-            hashed_password
-        )
-        .execute(&mut db_conn)
-        .await?;
+        let hashed_password = HASHER.hash(&login.password).expect("hasher failed hashing");
+        let mut user: user_account::ActiveModel = user.clone().into();
+        user.password = Set(hashed_password);
+        user.update(&state.db).await?;
     }
 
     // create session entry in redis

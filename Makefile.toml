@@ -1,0 +1,33 @@
+[tasks.format]
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--", "--emit=files"]
+
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+dependencies = ["clean"]
+
+[tasks.test]
+command = "cargo"
+args = ["test"]
+dependencies = ["clean"]
+
+[tasks.create-db]
+command = "sqlx"
+args = ["database", "create"]
+workspace = false
+
+[tasks.drop-db]
+command = "sqlx"
+args = ["database", "drop"]
+workspace = false
+
+[tasks.generate-entities]
+command = "sea-orm-cli"
+args = ["generate", "entity", "-o", "entity/src", "--with-serde", "both"]
+workspace = false

@@ -5,8 +5,10 @@ use axum::{
     headers::Cookie,
     http::{Response, StatusCode},
 };
-use chrono::{DateTime, Utc};
+use entity::{prelude::*, sea_orm_active_enums::UserRole, user_account};
+use fieldfilter::FieldFilterable;
 use redis::AsyncCommands;
+use sea_orm::{entity::*, prelude::*, query::*};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::Arc};
 use ulid::Ulid;
@@ -14,20 +16,21 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::{
+    actions::{Delete, Read, UpdateUser},
     auth::Auth,
     constants::{
-        SESSION_COOKIE_NAME, SESSION_KEY_PREFIX, VERIFY_EXPIRY_SECONDS, VERIFY_KEY_PREFIX,
+        RE_PASSWORD, RE_USERNAME, SESSION_COOKIE_NAME, SESSION_KEY_PREFIX, VERIFY_EXPIRY_SECONDS,
+        VERIFY_KEY_PREFIX,
     },
     error::MixiniError,
-    handlers::{ValidatedForm, RE_PASSWORD, RE_USERNAME},
-    models::{Role, User},
+    handlers::ValidatedForm,
     server::State,
     utils::{mail::send_email_verification_request, pass::HASHER, RKeys},
 };
 
 /// The form input for `POST /user`
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct CreateUserForm {
+pub(crate) struct CreateUser {
     /// The provided username.
     #[validate(
         length(
@@ -59,38 +62,6 @@ pub(crate) struct CreateUserForm {
     pub(crate) password: String,
 }
 
-/// The form input for `PUT /user/:id`
-#[derive(Debug, Validate, Deserialize)]
-pub(crate) struct UpdateUserForm {
-    #[validate(
-        length(
-            min = 5,
-            max = 32,
-            message = "Minimum length is 5 characters, maximum is 32"
-        ),
-        regex(
-            path = "RE_USERNAME",
-            message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
-        )
-    )]
-    pub(crate) name: Option<String>,
-    #[validate(email(message = "Must be a valid email address."))]
-    pub(crate) email: Option<String>,
-    pub(crate) role: Option<Role>,
-    #[validate(
-        length(
-            min = 8,
-            max = 128,
-            message = "Minimum length is 8 characters, maximum is 128"
-        ),
-        regex(
-            path = "RE_PASSWORD",
-            message = "Must be alphanumeric and contain at least one number."
-        )
-    )]
-    pub(crate) password: Option<String>,
-}
-
 /// The form input for `PUT /user/verify`
 #[derive(Debug, Validate, Deserialize)]
 pub(crate) struct VerifyForm {
@@ -101,63 +72,58 @@ pub(crate) struct VerifyForm {
     pub(crate) key: String,
 }
 
-/// The response output for `GET /user/:name`
-#[derive(Debug, Serialize)]
-pub(crate) struct UserResponse {
+/// The response for `GET /user/:id`
+#[derive(Debug, Serialize, FieldFilterable)]
+#[field_filterable_on(user_account::Model)]
+pub(crate) struct GetUserResponse {
     id: Uuid,
-    created_at: Option<DateTime<Utc>>,
-    updated_at: Option<DateTime<Utc>>,
-    name: String,
+    created_at: Option<DateTimeWithTimeZone>,
+    updated_at: Option<DateTimeWithTimeZone>,
+    name: Option<String>,
     email: Option<String>,
-    role: Role,
+    role: Option<UserRole>,
 }
 
 /// Handler for `POST /user`
 pub(crate) async fn create_user(
-    ValidatedForm(input): ValidatedForm<CreateUserForm>,
+    ValidatedForm(create_user): ValidatedForm<CreateUser>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     // check if either this username or email already exist in our database
-    let mut db_conn = state.db_pool.acquire().await?;
+    let conflicts = UserAccount::find()
+        .filter(
+            Condition::any()
+                .add(user_account::Column::Name.eq(create_user.name.to_owned()))
+                .add(user_account::Column::Email.eq(create_user.email.to_owned())),
+        )
+        .all(&state.db)
+        .await?;
 
-    // shadow
-    let (name, email, password) = (input.name, input.email, input.password);
-
-    let conflicts = sqlx::query!(
-        r#"SELECT id FROM users WHERE name = $1 OR email = $2"#,
-        name,
-        email,
-    )
-    .fetch_optional(&mut db_conn)
-    .await?;
-
-    if conflicts.is_some() {
-        let res = Response::builder()
+    if !conflicts.is_empty() {
+        Ok(Response::builder()
             .status(StatusCode::CONFLICT)
             .body(Body::from("A user with this name or email already exists."))
-            .unwrap();
-        return Ok(res);
+            .unwrap())
+    } else {
+        // create new user account in db
+        let id = Uuid::from(Ulid::new());
+        let password = HASHER
+            .hash(&create_user.password)
+            .expect("hasher failed hashing");
+
+        let new_account = user_account::ActiveModel {
+            id: Set(id),
+            name: Set(create_user.name),
+            email: Set(create_user.email),
+            password: Set(password),
+            ..Default::default()
+        };
+        new_account.insert(&state.db).await?;
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::empty())
+            .unwrap())
     }
-
-    // create new user in db
-    let id = Uuid::from(Ulid::new());
-    let password = HASHER.hash(&password).expect("hasher failed hashing");
-
-    sqlx::query_as!(
-        User,
-        r#"INSERT INTO users (id, name, email, password) VALUES ($1, $2, $3, $4)"#,
-        id,
-        name,
-        email,
-        password,
-    )
-    .execute(&mut db_conn)
-    .await?;
-
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::empty())
-        .unwrap())
 }
 
 /// Handler for `GET /user/:id`
@@ -166,59 +132,29 @@ pub(crate) async fn get_user(
     state: Extension<Arc<State>>,
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
-    let mut db_conn = state.db_pool.acquire().await?;
+    let maybe_user = UserAccount::find_by_id(id).one(&state.db).await?;
 
-    match sqlx::query_as!(
-        User,
-        r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
-        FROM users WHERE id = $1"#,
-        id
-    )
-    .fetch_optional(&mut db_conn)
-    .await?
-    {
+    match maybe_user {
         Some(user) => {
             let authorized_fields: HashSet<String> = if let Auth::KnownUser(this_user) = auth {
                 state
                     .oso
                     .lock()
                     .await
-                    .authorized_fields(this_user, "READ", user.to_owned())?
+                    .authorized_fields(this_user, Read, user.to_owned())?
             } else {
                 state
                     .oso
                     .lock()
                     .await
-                    .authorized_fields("guest", "READ", user.to_owned())?
+                    .authorized_fields("guest", Read, user.to_owned())?
             };
 
-            let created_at = if authorized_fields.contains("created_at") {
-                Some(user.created_at)
-            } else {
-                None
-            };
-            let updated_at = if authorized_fields.contains("updated_at") {
-                Some(user.updated_at)
-            } else {
-                None
-            };
-            let email = if authorized_fields.contains("email") {
-                Some(user.email)
-            } else {
-                None
-            };
+            let res_body: GetUserResponse = FieldFilterable::field_filter(user, authorized_fields);
 
-            let user_response = UserResponse {
-                id: user.id,
-                created_at,
-                updated_at,
-                name: user.name,
-                email,
-                role: user.role,
-            };
             Ok(Response::builder()
                 .status(StatusCode::OK)
-                .body(Body::from(serde_json::to_vec(&user_response)?))
+                .body(Body::from(serde_json::to_vec(&res_body)?))
                 .unwrap())
         }
         None => Ok(Response::builder()
@@ -231,80 +167,49 @@ pub(crate) async fn get_user(
 /// Handler for `PUT /user/:id`
 pub(crate) async fn update_user(
     Path(id): Path<Uuid>,
-    ValidatedForm(input): ValidatedForm<UpdateUserForm>,
+    ValidatedForm(update_user): ValidatedForm<UpdateUser>,
     state: Extension<Arc<State>>,
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
     match auth {
         Auth::KnownUser(this_user) => {
-            let mut db_conn = state.db_pool.acquire().await?;
+            let user = if let Some(user) = UserAccount::find_by_id(id).one(&state.db).await? {
+                user
+            } else {
+                return Ok(Response::builder()
+                    .status(StatusCode::FORBIDDEN)
+                    .body(Body::empty())
+                    .unwrap());
+            };
 
-            let user = if let Some(user) = sqlx::query_as!(
-                    User,
-                    r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
-                    FROM users WHERE id = $1"#,
-                    id
-                )
-                .fetch_optional(&mut db_conn)
-                .await? { user } else {
-                    return Ok(Response::builder()
-                        .status(StatusCode::FORBIDDEN)
-                        .body(Body::empty())
-                        .unwrap());
-                };
-
-            let mut values = Vec::new();
-
-            if let Some(role) = input.role {
-                if state
-                    .oso
-                    .lock()
-                    .await
-                    .query_rule("allow_assign_role", (this_user.to_owned(), role))?
-                    .next()
-                    .is_some()
-                {
-                    values.push(format!("role = '{}'", role));
-                } else {
-                    return Ok(Response::builder()
-                        .status(StatusCode::FORBIDDEN)
-                        .body(Body::empty())
-                        .unwrap());
+            if state.oso.lock().await.is_allowed(
+                this_user,
+                update_user.to_owned(),
+                user.to_owned(),
+            )? {
+                // TODO: When UpdateUser -> ActiveModel works, change this
+                // https://github.com/SeaQL/sea-orm/issues/547
+                let mut user: user_account::ActiveModel = user.into();
+                if let Some(name) = update_user.name {
+                    user.name = Set(name);
                 }
-            }
-
-            let authorized_fields: HashSet<String> =
-                state
-                    .oso
-                    .lock()
-                    .await
-                    .authorized_fields(this_user, "READ", user.to_owned())?;
-
-            if let Some(name) = input.name {
-                if authorized_fields.contains("name") {
-                    values.push(format!("name = {}", name));
+                if let Some(email) = update_user.email {
+                    user.email = Set(email);
                 }
-            }
-
-            if let Some(email) = input.email {
-                if authorized_fields.contains("email") {
-                    values.push(format!("email = {}", email));
+                if let Some(role) = update_user.role {
+                    user.role = Set(role);
                 }
+                user.update(&state.db).await?;
+                Ok(Response::builder()
+                    .status(StatusCode::OK)
+                    .body(Body::empty())
+                    .unwrap())
+            } else {
+                Ok(Response::builder()
+                    .status(StatusCode::FORBIDDEN)
+                    .body(Body::empty())
+                    .unwrap())
             }
-
-            let values = values.join(",");
-
-            // TODO: Requires testing, this is a dynamic query
-            sqlx::query(r#"UPDATE users SET $2 WHERE id = $1"#)
-                .bind(id)
-                .bind(values)
-                .execute(&mut db_conn)
-                .await?;
-
-            Ok(Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::empty())
-                .unwrap())
         }
         Auth::UnknownUser => Ok(Response::builder()
             .status(StatusCode::UNAUTHORIZED)
@@ -322,16 +227,9 @@ pub(crate) async fn delete_user(
 ) -> Result<Response<Body>, MixiniError> {
     match auth {
         Auth::KnownUser(this_user) => {
-            let mut db_conn = state.db_pool.acquire().await?;
-
-            let user = if let Some(user) = sqlx::query_as!(
-                User,
-                r#"SELECT id, created_at, updated_at, name, email, role as "role:_", password, verified
-                FROM users WHERE id = $1"#,
-                id
-            )
-            .fetch_optional(&mut db_conn)
-            .await? { user } else {
+            let user = if let Some(user) = UserAccount::find_by_id(id).one(&state.db).await? {
+                user
+            } else {
                 return Ok(Response::builder()
                     .status(StatusCode::FORBIDDEN)
                     .body(Body::empty())
@@ -342,11 +240,9 @@ pub(crate) async fn delete_user(
                 .oso
                 .lock()
                 .await
-                .is_allowed(this_user, "DELETE", user.to_owned())?
+                .is_allowed(this_user, Delete, user.to_owned())?
             {
-                sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, user.id)
-                    .execute(&mut db_conn)
-                    .await?;
+                user.delete(&state.db).await?;
 
                 // also delete cookie in store
                 let base_key = cookie.get(SESSION_COOKIE_NAME).expect("cookie monster!?");
@@ -417,26 +313,30 @@ pub(crate) async fn create_verify_user(
 
 /// Handler for `PUT /user/verify`
 pub(crate) async fn update_verify_user(
-    ValidatedForm(input): ValidatedForm<VerifyForm>,
+    ValidatedForm(verify): ValidatedForm<VerifyForm>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
     // value is user id
-    let prefixed_key = format!("{}{}", VERIFY_KEY_PREFIX, &input.key);
+    let prefixed_key = format!("{}{}", VERIFY_KEY_PREFIX, &verify.key);
     let maybe_id: Option<String> = state.redis_manager.to_owned().get(&prefixed_key).await?;
 
     match maybe_id {
         Some(id) => {
             let id: Uuid = Uuid::parse_str(&id).map_err(|e| format_err!(e))?;
 
-            let mut db_conn = state.db_pool.acquire().await?;
+            // NOTE: Normally this should always be Some(user) but better safe than sorry
+            let user = if let Some(user) = UserAccount::find_by_id(id).one(&state.db).await? {
+                user
+            } else {
+                return Ok(Response::builder()
+                    .status(StatusCode::FORBIDDEN)
+                    .body(Body::empty())
+                    .unwrap());
+            };
+            let mut user: user_account::ActiveModel = user.into();
 
-            sqlx::query_as!(
-                User,
-                r#"UPDATE users SET verified = TRUE WHERE id = $1"#,
-                id
-            )
-            .execute(&mut db_conn)
-            .await?;
+            user.verified = Set(true);
+            user.update(&state.db).await?;
 
             Ok(Response::builder()
                 .status(StatusCode::OK)
