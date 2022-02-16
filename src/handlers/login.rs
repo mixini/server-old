@@ -36,7 +36,7 @@ pub(crate) struct LoginForm {
             message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
         )
     )]
-    name: String,
+    pub(crate) name: String,
     #[validate(
         length(
             min = 8,
@@ -48,7 +48,7 @@ pub(crate) struct LoginForm {
             message = "Must be alphanumeric and contain at least one number."
         )
     )]
-    password: String,
+    pub(crate) password: String,
 }
 
 /// Handler for `POST /login`

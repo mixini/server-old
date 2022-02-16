@@ -40,10 +40,10 @@ pub(crate) struct CreateUserForm {
             message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
         )
     )]
-    name: String,
+    pub(crate) name: String,
     /// The provided email.
     #[validate(email(message = "Must be a valid email address."))]
-    email: String,
+    pub(crate) email: String,
     /// The provided password.
     #[validate(
         length(
@@ -56,7 +56,7 @@ pub(crate) struct CreateUserForm {
             message = "Must be alphanumeric and contain at least one number."
         )
     )]
-    password: String,
+    pub(crate) password: String,
 }
 
 /// The form input for `PUT /user/:id`
@@ -73,10 +73,10 @@ pub(crate) struct UpdateUserForm {
             message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
         )
     )]
-    name: Option<String>,
+    pub(crate) name: Option<String>,
     #[validate(email(message = "Must be a valid email address."))]
-    email: Option<String>,
-    role: Option<Role>,
+    pub(crate) email: Option<String>,
+    pub(crate) role: Option<Role>,
     #[validate(
         length(
             min = 8,
@@ -88,7 +88,7 @@ pub(crate) struct UpdateUserForm {
             message = "Must be alphanumeric and contain at least one number."
         )
     )]
-    password: Option<String>,
+    pub(crate) password: Option<String>,
 }
 
 /// The form input for `PUT /user/verify`
@@ -98,7 +98,7 @@ pub(crate) struct VerifyForm {
         equal = 32,
         message = "Length of this key must be exactly 32 characters."
     ))]
-    key: String,
+    pub(crate) key: String,
 }
 
 /// The response output for `GET /user/:name`
