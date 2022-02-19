@@ -14,7 +14,7 @@ allow_field(user: User, _: Read, other_user: User, field) if
 allow_field(_, _: Read, _other_user: User, field: String) if
     field in ["created_at", "name", "role"];
 
-## admins can change everything for a user except the password
+## admins can update everything for a user except the password
 allow(user: User, update: UpdateUser, _other_user: User) if
     user.role = Role::Admin and
     update.password = nil;
@@ -30,7 +30,7 @@ allow(user: User, update: UpdateUser, other_user: User) if
 ## users can update themselves but not their role
 allow(user: User, update: UpdateUser, other_user: User) if
     user.id = other_user.id and
-    changes.role = nil;
+    update.role = nil;
 
 ## admins can delete other users
 allow(user: User, _: Delete, _other_user: User) if

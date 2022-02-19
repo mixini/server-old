@@ -25,7 +25,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "mixini_server=debug,tower_http=debug")
+        std::env::set_var(
+            "RUST_LOG",
+            "mixini_server=debug,tower_http=debug,sea_orm=debug",
+        )
     }
     tracing_subscriber::fmt::init();
     server::run().await
