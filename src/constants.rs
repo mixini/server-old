@@ -1,10 +1,14 @@
 //! Constants
 
 use lazy_static::lazy_static;
+use regex::Regex;
 
 lazy_static! {
     pub(crate) static ref DOMAIN: String =
         std::env::var("DOMAIN").expect("DOMAIN is not set in env");
+    pub(crate) static ref RE_USERNAME: Regex = Regex::new(r"^[a-zA-Z0-9\.\-_]+$").unwrap();
+    pub(crate) static ref RE_PASSWORD: Regex =
+        Regex::new(r"^[a-zA-Z0-9]*[0-9][a-zA-Z0-9]*$").unwrap();
 }
 
 // for authorized sessions

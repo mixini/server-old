@@ -6,12 +6,11 @@
     rust_2021_compatibility
 )]
 
+pub(crate) mod actions;
 pub(crate) mod auth;
 pub(crate) mod constants;
 pub(crate) mod error;
 pub(crate) mod handlers;
-pub(crate) mod macros;
-pub(crate) mod models;
 pub(crate) mod server;
 pub(crate) mod utils;
 

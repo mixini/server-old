@@ -14,9 +14,6 @@ pub(crate) enum MixiniError {
     AxumFormRejection(#[from] axum::extract::rejection::FormRejection),
 
     #[error(transparent)]
-    BincodeError(#[from] bincode::Error),
-
-    #[error(transparent)]
     JsonError(#[from] serde_json::Error),
 
     #[error(transparent)]
@@ -29,10 +26,10 @@ pub(crate) enum MixiniError {
     RedisError(#[from] redis::RedisError),
 
     #[error(transparent)]
-    SmtpError(#[from] lettre::transport::smtp::Error),
+    DatabaseError(#[from] sea_orm::DbErr),
 
     #[error(transparent)]
-    SqlxError(#[from] sqlx::Error),
+    SmtpError(#[from] lettre::transport::smtp::Error),
 
     #[error(transparent)]
     ValidationError(#[from] validator::ValidationErrors),
@@ -45,13 +42,6 @@ impl IntoResponse for MixiniError {
     fn into_response(self) -> Response {
         match self {
             MixiniError::AxumFormRejection(_) => (StatusCode::BAD_REQUEST, self.to_string()),
-            MixiniError::BincodeError(e) => {
-                tracing::debug!("Bincode error occurred: {:?}", e);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    INTERNAL_SERVER_ERROR_MESSAGE.into(),
-                )
-            }
             MixiniError::JsonError(e) => {
                 tracing::debug!("Json error occurred: {:?}", e);
                 (
@@ -87,10 +77,10 @@ impl IntoResponse for MixiniError {
                     INTERNAL_SERVER_ERROR_MESSAGE.into(),
                 )
             }
-            MixiniError::SqlxError(ref e) => match e {
-                sqlx::Error::RowNotFound => (StatusCode::NOT_FOUND, self.to_string()),
+            MixiniError::DatabaseError(ref e) => match e {
+                sea_orm::DbErr::RecordNotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
                 _ => {
-                    tracing::debug!("Sqlx error occurred: {:?}", e);
+                    tracing::debug!("SeaORM error occurred: {:?}", e);
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         INTERNAL_SERVER_ERROR_MESSAGE.into(),

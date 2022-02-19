@@ -7,8 +7,8 @@ use lettre::{
     transport::smtp::authentication::{Credentials, Mechanism},
     AsyncSmtpTransport, Tokio1Executor,
 };
-use oso::{Oso, PolarClass};
-use sqlx::PgPool;
+use oso::Oso;
+use sea_orm::{Database, DatabaseConnection};
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
 use tower::ServiceBuilder;
@@ -17,12 +17,12 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-use crate::handlers;
+use crate::{actions::try_register_oso, handlers};
 
 #[derive(Clone)]
 pub(crate) struct State {
     pub(crate) oso: Arc<Mutex<Oso>>,
-    pub(crate) db_pool: PgPool,
+    pub(crate) db: DatabaseConnection,
     pub(crate) redis_manager: redis::aio::ConnectionManager,
     pub(crate) mailsender: AsyncSmtpTransport<Tokio1Executor>,
 }
@@ -31,7 +31,7 @@ impl State {
     /// Attempt to create a new State instance
     pub(crate) async fn try_new() -> Result<State> {
         let oso = Arc::new(Mutex::new(try_register_oso()?));
-        let db_pool = PgPool::connect(&std::env::var("DATABASE_URL")?).await?;
+        let db = Database::connect(&std::env::var("DATABASE_URL")?).await?;
         let redis_manager = redis::Client::open(std::env::var("REDIS_URL")?)?
             .get_tokio_connection_manager()
             .await?;
@@ -48,27 +48,11 @@ impl State {
 
         Ok(State {
             oso,
-            db_pool,
+            db,
             redis_manager,
             mailsender,
         })
     }
-}
-
-/// Attempt to create a new oso instance for managing authorization schemes.
-fn try_register_oso() -> Result<Oso> {
-    use crate::models::*;
-
-    let mut oso = Oso::new();
-
-    // NOTE: load classes here
-    oso.register_class(User::get_polar_class())?;
-    oso.register_class(Role::get_polar_class())?;
-
-    // NOTE: load oso rule files here
-    oso.load_files(vec!["polar/users.polar"])?;
-
-    Ok(oso)
 }
 
 /// Attempt to setup the CORS layer.

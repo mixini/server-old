@@ -4,8 +4,6 @@ use axum::{
     extract::{Form, FromRequest, RequestParts},
     BoxError,
 };
-use lazy_static::lazy_static;
-use regex::Regex;
 use serde::de::DeserializeOwned;
 use validator::Validate;
 
@@ -16,12 +14,6 @@ pub(crate) mod user;
 
 pub(crate) use login::*;
 pub(crate) use user::*;
-
-lazy_static! {
-    pub(crate) static ref RE_USERNAME: Regex = Regex::new(r"^[a-zA-Z0-9\.\-_]+$").unwrap();
-    pub(crate) static ref RE_PASSWORD: Regex =
-        Regex::new(r"^[a-zA-Z0-9]*[0-9][a-zA-Z0-9]*$").unwrap();
-}
 
 /// A validated form with some input.
 #[derive(Debug, Clone, Copy, Default)]

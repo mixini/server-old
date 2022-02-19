@@ -8,7 +8,6 @@ use redis::AsyncCommands;
 use crate::{
     constants::{SESSION_COOKIE_NAME, SESSION_DURATION_SECS, SESSION_KEY_PREFIX},
     error::MixiniError,
-    models::User,
     server::State,
 };
 
@@ -18,7 +17,7 @@ use crate::{
 /// with the value being the unprefixed key.
 #[derive(Debug)]
 pub(crate) enum Auth {
-    KnownUser(User),
+    KnownUser(entity::user_account::Model),
     UnknownUser,
 }
 
