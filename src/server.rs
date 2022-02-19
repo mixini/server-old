@@ -59,7 +59,7 @@ impl State {
 fn try_cors_layer() -> Result<CorsLayer> {
     use axum::http::Method;
 
-    if cfg!(debug_assertions) {
+    if crate::DEV_BUILD {
         Ok(CorsLayer::permissive())
     } else {
         let origins = std::env::var("ALLOWED_ORIGINS")?

@@ -14,9 +14,11 @@ pub(crate) mod handlers;
 pub(crate) mod server;
 pub(crate) mod utils;
 
+pub(crate) const DEV_BUILD: bool = cfg!(debug_assertions);
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Result<()>> {
-    if cfg!(debug_assertions) {
+    if DEV_BUILD {
         dotenv::dotenv().ok();
     } else {
         dotenv::from_filename("prod.env").ok();
