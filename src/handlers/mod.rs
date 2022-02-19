@@ -9,15 +9,15 @@ use validator::Validate;
 
 use crate::error::MixiniError;
 
-pub(crate) mod login;
-pub(crate) mod user;
+pub mod login;
+pub mod user;
 
-pub(crate) use login::*;
-pub(crate) use user::*;
+pub use login::*;
+pub use user::*;
 
 /// A validated form with some input.
 #[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct ValidatedForm<T>(pub(crate) T);
+pub struct ValidatedForm<T>(pub T);
 
 #[async_trait]
 impl<T, B> FromRequest<B> for ValidatedForm<T>

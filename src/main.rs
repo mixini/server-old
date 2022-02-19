@@ -6,15 +6,15 @@
     rust_2021_compatibility
 )]
 
-pub(crate) mod actions;
-pub(crate) mod auth;
-pub(crate) mod constants;
-pub(crate) mod error;
-pub(crate) mod handlers;
-pub(crate) mod server;
-pub(crate) mod utils;
+pub mod actions;
+pub mod auth;
+pub mod constants;
+pub mod error;
+pub mod handlers;
+pub mod server;
+pub mod utils;
 
-pub(crate) const DEV_BUILD: bool = cfg!(debug_assertions);
+pub const DEV_BUILD: bool = cfg!(debug_assertions);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -16,7 +16,7 @@ use crate::{
 /// The extractor middleware that captures this Auth looks for a `SESSION_COOKIE_NAME` cookie
 /// with the value being the unprefixed key.
 #[derive(Debug)]
-pub(crate) enum Auth {
+pub enum Auth {
     KnownUser(entity::user_account::Model),
     UnknownUser,
 }

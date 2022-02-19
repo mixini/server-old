@@ -15,7 +15,7 @@ lazy_static! {
         .expect("SMTP_EMAIL key is invalid");
 }
 
-pub(crate) async fn send_email_verification_request(
+pub async fn send_email_verification_request(
     mailsender: &AsyncSmtpTransport<Tokio1Executor>,
     email: String,
     key: String,

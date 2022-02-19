@@ -9,7 +9,7 @@ const INTERNAL_SERVER_ERROR_MESSAGE: &str = "ahh the pepeloni";
 
 /// Any possible errors
 #[derive(Debug, Error)]
-pub(crate) enum MixiniError {
+pub enum MixiniError {
     #[error(transparent)]
     AxumFormRejection(#[from] axum::extract::rejection::FormRejection),
 

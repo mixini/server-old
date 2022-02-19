@@ -20,16 +20,16 @@ use tower_http::{
 use crate::{actions::try_register_oso, handlers};
 
 #[derive(Clone)]
-pub(crate) struct State {
-    pub(crate) oso: Arc<Mutex<Oso>>,
-    pub(crate) db: DatabaseConnection,
-    pub(crate) redis_manager: redis::aio::ConnectionManager,
-    pub(crate) mailsender: AsyncSmtpTransport<Tokio1Executor>,
+pub struct State {
+    pub oso: Arc<Mutex<Oso>>,
+    pub db: DatabaseConnection,
+    pub redis_manager: redis::aio::ConnectionManager,
+    pub mailsender: AsyncSmtpTransport<Tokio1Executor>,
 }
 
 impl State {
     /// Attempt to create a new State instance
-    pub(crate) async fn try_new() -> Result<State> {
+    pub async fn try_new() -> Result<State> {
         let oso = Arc::new(Mutex::new(try_register_oso()?));
         let db = Database::connect(&std::env::var("DATABASE_URL")?).await?;
         let redis_manager = redis::Client::open(std::env::var("REDIS_URL")?)?
@@ -78,7 +78,7 @@ fn try_cors_layer() -> Result<CorsLayer> {
 }
 
 /// Run the server.
-pub(crate) async fn run() -> Result<()> {
+pub async fn run() -> Result<()> {
     let addr = std::net::SocketAddr::from_str(&std::env::var("ADDR")?)?;
     tracing::debug!("listening on {}", addr);
 

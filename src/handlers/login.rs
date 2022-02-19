@@ -28,7 +28,7 @@ use crate::{
 
 /// The form input of a `POST /user/login` request.
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct LoginForm {
+pub struct LoginForm {
     #[validate(
         length(
             min = 5,
@@ -40,7 +40,7 @@ pub(crate) struct LoginForm {
             message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
         )
     )]
-    pub(crate) name: String,
+    pub name: String,
     #[validate(
         length(
             min = 8,
@@ -52,11 +52,11 @@ pub(crate) struct LoginForm {
             message = "Must be alphanumeric and contain at least one number."
         )
     )]
-    pub(crate) password: String,
+    pub password: String,
 }
 
 /// Handler for `POST /login`
-pub(crate) async fn login(
+pub async fn login(
     ValidatedForm(login): ValidatedForm<LoginForm>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
@@ -118,7 +118,7 @@ pub(crate) async fn login(
 }
 
 /// Handler for `DELETE /login`
-pub(crate) async fn logout(
+pub async fn logout(
     TypedHeader(cookie): TypedHeader<Cookie>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {

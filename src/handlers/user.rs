@@ -30,7 +30,7 @@ use crate::{
 
 /// The form input for `POST /user`
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct CreateUser {
+pub struct CreateUser {
     /// The provided username.
     #[validate(
         length(
@@ -43,10 +43,10 @@ pub(crate) struct CreateUser {
             message = "Can only contain letters, numbers, dashes (-), periods (.), and underscores (_)"
         )
     )]
-    pub(crate) name: String,
+    pub name: String,
     /// The provided email.
     #[validate(email(message = "Must be a valid email address."))]
-    pub(crate) email: String,
+    pub email: String,
     /// The provided password.
     #[validate(
         length(
@@ -59,23 +59,23 @@ pub(crate) struct CreateUser {
             message = "Must be alphanumeric and contain at least one number."
         )
     )]
-    pub(crate) password: String,
+    pub password: String,
 }
 
 /// The form input for `PUT /user/verify`
 #[derive(Debug, Validate, Deserialize)]
-pub(crate) struct VerifyForm {
+pub struct VerifyForm {
     #[validate(length(
         equal = 32,
         message = "Length of this key must be exactly 32 characters."
     ))]
-    pub(crate) key: String,
+    pub key: String,
 }
 
 /// The response for `GET /user/:id`
 #[derive(Debug, Serialize, FieldFilterable)]
 #[field_filterable_on(user_account::Model)]
-pub(crate) struct GetUserResponse {
+pub struct GetUserResponse {
     id: Uuid,
     created_at: Option<DateTimeWithTimeZone>,
     updated_at: Option<DateTimeWithTimeZone>,
@@ -85,7 +85,7 @@ pub(crate) struct GetUserResponse {
 }
 
 /// Handler for `POST /user`
-pub(crate) async fn create_user(
+pub async fn create_user(
     ValidatedForm(create_user): ValidatedForm<CreateUser>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
@@ -127,7 +127,7 @@ pub(crate) async fn create_user(
 }
 
 /// Handler for `GET /user/:id`
-pub(crate) async fn get_user(
+pub async fn get_user(
     Path(id): Path<Uuid>,
     state: Extension<Arc<State>>,
     auth: Auth,
@@ -165,7 +165,7 @@ pub(crate) async fn get_user(
 }
 
 /// Handler for `PUT /user/:id`
-pub(crate) async fn update_user(
+pub async fn update_user(
     Path(id): Path<Uuid>,
     ValidatedForm(update_user): ValidatedForm<UpdateUser>,
     state: Extension<Arc<State>>,
@@ -219,7 +219,7 @@ pub(crate) async fn update_user(
 }
 
 /// Handler for `DELETE /user/:id`
-pub(crate) async fn delete_user(
+pub async fn delete_user(
     Path(id): Path<Uuid>,
     TypedHeader(cookie): TypedHeader<Cookie>,
     state: Extension<Arc<State>>,
@@ -268,7 +268,7 @@ pub(crate) async fn delete_user(
 }
 
 /// Handler for `POST /user/verify`
-pub(crate) async fn create_verify_user(
+pub async fn create_verify_user(
     state: Extension<Arc<State>>,
     auth: Auth,
 ) -> Result<Response<Body>, MixiniError> {
@@ -312,7 +312,7 @@ pub(crate) async fn create_verify_user(
 }
 
 /// Handler for `PUT /user/verify`
-pub(crate) async fn update_verify_user(
+pub async fn update_verify_user(
     ValidatedForm(verify): ValidatedForm<VerifyForm>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {

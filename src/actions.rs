@@ -9,18 +9,18 @@ use crate::constants::RE_USERNAME;
 
 /// The "READ" action. Because there is no data pertinent to this action it is a unit struct.
 #[derive(Debug, Clone, Copy, PolarClass)]
-pub(crate) struct Read;
+pub struct Read;
 
 /// The "DELETE" action. Because there is no data pertinent to this action it is a unit struct.
 #[derive(Debug, Clone, Copy, PolarClass)]
-pub(crate) struct Delete;
+pub struct Delete;
 
 /// The action by which a user is updated. Can be understood as a sort of changeset.
 ///
 /// This struct in particular doubles up for multiple use cases. It's used for PUT `/user/:id` form responses,
 /// in authorization rules, and also for updates to the ORM.
 #[derive(Debug, Clone, Validate, Deserialize, PolarClass)]
-pub(crate) struct UpdateUser {
+pub struct UpdateUser {
     #[validate(
         length(
             min = 5,
@@ -33,16 +33,16 @@ pub(crate) struct UpdateUser {
         )
     )]
     #[polar(attribute)]
-    pub(crate) name: Option<String>,
+    pub name: Option<String>,
     #[validate(email(message = "Must be a valid email address."))]
     #[polar(attribute)]
-    pub(crate) email: Option<String>,
+    pub email: Option<String>,
     #[polar(attribute)]
-    pub(crate) role: Option<UserRole>,
+    pub role: Option<UserRole>,
 }
 
 /// Attempt to create a new oso instance for managing authorization schemes.
-pub(crate) fn try_register_oso() -> Result<Oso> {
+pub fn try_register_oso() -> Result<Oso> {
     let mut oso = Oso::new();
 
     // NOTE: load classes here
