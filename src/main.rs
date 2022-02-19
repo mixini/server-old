@@ -17,7 +17,7 @@ pub(crate) mod utils;
 pub(crate) const DEV_BUILD: bool = cfg!(debug_assertions);
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Result<()>> {
+async fn main() -> anyhow::Result<()> {
     if DEV_BUILD {
         dotenv::dotenv().ok();
     } else {
@@ -28,10 +28,5 @@ async fn main() -> Result<(), anyhow::Result<()>> {
         std::env::set_var("RUST_LOG", "mixini_server=debug,tower_http=debug")
     }
     tracing_subscriber::fmt::init();
-
-    if let Err(err) = server::run().await {
-        eprintln!("Error: {}", err);
-        std::process::exit(1);
-    }
-    Ok(())
+    server::run().await
 }

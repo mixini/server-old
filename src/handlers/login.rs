@@ -122,25 +122,26 @@ pub(crate) async fn logout(
     TypedHeader(cookie): TypedHeader<Cookie>,
     state: Extension<Arc<State>>,
 ) -> Result<Response<Body>, MixiniError> {
-    if let Some(sessid) = cookie.get(SESSION_COOKIE_NAME) {
-        let prefixed_key = format!("{}{}", SESSION_KEY_PREFIX, sessid);
-        state.redis_manager.to_owned().del(&prefixed_key).await?;
-        Ok(Response::builder()
+    match cookie.get(SESSION_COOKIE_NAME) {
+        Some(sessid) => {
+            let prefixed_key = format!("{}{}", SESSION_KEY_PREFIX, sessid);
+            state.redis_manager.to_owned().del(&prefixed_key).await?;
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header(
+                    header::SET_COOKIE,
+                    format!(
+                        "{cname}=expired; Secure; HttpOnly; Domain={domain}; Max-Age=-1",
+                        cname = SESSION_COOKIE_NAME,
+                        domain = *DOMAIN,
+                    ),
+                )
+                .body(Body::empty())
+                .unwrap())
+        }
+        None => Ok(Response::builder()
             .status(StatusCode::OK)
-            .header(
-                header::SET_COOKIE,
-                format!(
-                    "{cname}=expired; Secure; HttpOnly; Domain={domain}; Max-Age=-1",
-                    cname = SESSION_COOKIE_NAME,
-                    domain = *DOMAIN,
-                ),
-            )
             .body(Body::empty())
-            .unwrap())
-    } else {
-        Ok(Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())
-            .unwrap())
+            .unwrap()),
     }
 }
