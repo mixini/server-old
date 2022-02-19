@@ -150,7 +150,7 @@ pub(crate) async fn get_user(
                     .authorized_fields("guest", Read, user.to_owned())?
             };
 
-            let res_body: GetUserResponse = FieldFilterable::field_filter(user, authorized_fields);
+            let res_body = GetUserResponse::field_filter(user, authorized_fields);
 
             Ok(Response::builder()
                 .status(StatusCode::OK)
