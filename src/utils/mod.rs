@@ -8,6 +8,7 @@ pub mod pass;
 const KEY_LENGTH: usize = 32;
 
 /// Pair of keys intended for use in redis and cookies
+#[derive(Debug)]
 pub struct RKeys {
     /// Key without prefix
     pub base_key: String,

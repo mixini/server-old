@@ -19,6 +19,7 @@ use tower_http::{
 
 use crate::{actions::try_register_oso, handlers};
 
+#[allow(missing_debug_implementations)]
 #[derive(Clone)]
 pub struct State {
     pub oso: Arc<Mutex<Oso>>,
