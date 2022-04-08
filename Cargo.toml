@@ -24,7 +24,7 @@ lettre = { version = "0.10.0-rc.5", features = [
     "serde",
 ] }
 libreauth = "0.15.0"
-oso = { git = "https://github.com/fairingrey/oso", branch = "rust-addl-interface", features = [
+oso = { version = "0.26.0", features = [
     "uuid-07",
 ] }
 oxide-auth = "0.5.1"
@@ -59,4 +59,5 @@ uuid = { version = "0.8.2", features = ["serde", "v4"] }
 validator = { version = "0.14.0", features = ["derive"] }
 
 [patch.crates-io]
+oso = { git = "https://github.com/fairingrey/oso", branch = "rust-addl-interface" }
 sea-orm = { git = "https://github.com/fairingrey/sea-orm", branch = "changeset-like" }
