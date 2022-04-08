@@ -88,7 +88,7 @@ impl IntoResponse for MixiniError {
                 }
             },
             MixiniError::ValidationError(_) => {
-                let message = format!("Input validation error: [{}]", self).replace("\n", ", ");
+                let message = format!("Input validation error: [{}]", self).replace('\n', ", ");
                 (StatusCode::BAD_REQUEST, message)
             }
             MixiniError::OtherError(e) => {

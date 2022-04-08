@@ -19,7 +19,7 @@ redis = { version = "0.21.5", features = [
     "tokio-comp",
     "connection-manager",
 ], default-features = false }
-sea-orm = { version = "0.6.0", features = [
+sea-orm = { version = "0.7.1", features = [
     "macros",
     "debug-print",
     "runtime-tokio-native-tls",

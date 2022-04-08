@@ -10,20 +10,20 @@ edition = "2021"
 members = [".", "entity"]
 
 [dependencies]
-anyhow = "1.0.53"
-axum = { version = "0.4.5", features = ["headers", "http2", "multipart"] }
+anyhow = "1.0.56"
+axum = { version = "0.5.1", features = ["headers", "http2", "multipart"] }
 chrono = { version = "0.4.19", features = ["serde"] }
 dotenv = "0.15.0"
 entity = { path = "entity" }
 fieldfilter = "0.1.0"
 lazy_static = "1.4.0"
-lettre = { version = "0.10.0-rc.4", features = [
+lettre = { version = "0.10.0-rc.5", features = [
     "tokio1",
     "tokio1-native-tls",
     "tracing",
     "serde",
 ] }
-libreauth = "0.14.1"
+libreauth = "0.15.0"
 oso = { git = "https://github.com/fairingrey/oso", branch = "rust-addl-interface", features = [
     "uuid-07",
 ] }
@@ -35,8 +35,8 @@ redis = { version = "0.21.5", features = [
     "tokio-comp",
     "connection-manager",
 ], default-features = false }
-regex = "1.5.4"
-sea-orm = { version = "0.6.0", features = [
+regex = "1.5.5"
+sea-orm = { version = "0.7.1", features = [
     "macros",
     "debug-print",
     "runtime-tokio-native-tls",
@@ -47,13 +47,16 @@ serde_json = "1.0.79"
 thiserror = "1.0.30"
 tokio = { version = "1.17.0", features = ["rt-multi-thread", "macros", "sync"] }
 tower = "0.4.12"
-tower-http = { version = "0.2.2", features = [
+tower-http = { version = "0.2.5", features = [
     "add-extension",
     "trace",
     "cors",
 ] }
-tracing = "0.1.31"
-tracing-subscriber = { version = "0.3.9", features = ["env-filter"] }
+tracing = "0.1.32"
+tracing-subscriber = { version = "0.3.10", features = ["env-filter"] }
 ulid = { version = "0.5.0", features = ["serde", "uuid"] }
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
 validator = { version = "0.14.0", features = ["derive"] }
+
+[patch.crates-io]
+sea-orm = { git = "https://github.com/fairingrey/sea-orm", branch = "changeset-like" }

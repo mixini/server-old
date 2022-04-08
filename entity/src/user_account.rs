@@ -27,6 +27,21 @@ pub struct Model {
     pub verified: bool,
 }
 
+#[derive(Debug, DeriveIntoActiveModel)]
+pub struct NewUserAccount {
+    pub id: Uuid,
+    pub name: String,
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, DeriveIntoActiveModel)]
+pub struct UpdateUserAccount {
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub role: Option<UserRole>,
+}
+
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {}
 
