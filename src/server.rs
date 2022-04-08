@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axum::{
     routing::{get, post},
-    AddExtensionLayer, Router,
+    Extension, Router,
 };
 use lettre::{
     transport::smtp::authentication::{Credentials, Mechanism},
@@ -94,7 +94,7 @@ async fn try_app() -> Result<Router> {
 
     let middleware_stack = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http())
-        .layer(AddExtensionLayer::new(state))
+        .layer(Extension(state))
         .layer(try_cors_layer()?);
 
     Ok(Router::new()

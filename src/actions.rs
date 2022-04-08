@@ -1,6 +1,6 @@
 //! CRUD action-like resources
 use anyhow::Result;
-use entity::sea_orm_active_enums::UserRole;
+use entity::{sea_orm_active_enums::UserRole, user_account};
 use oso::{Oso, PolarClass};
 use serde::Deserialize;
 use validator::Validate;
@@ -39,6 +39,16 @@ pub struct UpdateUser {
     pub email: Option<String>,
     #[polar(attribute)]
     pub role: Option<UserRole>,
+}
+
+impl From<UpdateUser> for user_account::UpdateUserAccount {
+    fn from(update: UpdateUser) -> Self {
+        Self {
+            name: update.name,
+            email: update.email,
+            role: update.role,
+        }
+    }
 }
 
 /// Attempt to create a new oso instance for managing authorization schemes.
