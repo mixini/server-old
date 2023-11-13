@@ -12,10 +12,7 @@ use sea_orm::{Database, DatabaseConnection};
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
 use tower::ServiceBuilder;
-use tower_http::{
-    cors::{CorsLayer, Origin},
-    trace::TraceLayer,
-};
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 use crate::{actions::try_register_oso, handlers};
 
@@ -74,7 +71,7 @@ fn try_cors_layer() -> Result<CorsLayer> {
             // allow credentials
             .allow_credentials(true)
             // allow requests from specified env origins
-            .allow_origin(Origin::list(origins)))
+            .allow_origin(origins))
     }
 }
 
